@@ -267,10 +267,9 @@ procedure( addText( object @optional ( textType t ) )
         width = textBlock->width
         thickness = textBlock->photoWidth
 
-        ; remove characters, that are not in font data
-        ;pattern = pcreCompile("[\\\\\"\\'\\%]")
-        ;text = pcreReplace( pattern object->text " " 0 )
-        text = object->text
+        ; escape " correctly"
+        pattern = pcreCompile("[\\\"]")
+        text = pcreReplace( pattern object->text "\\\\\"" 0 )
  
         element = strcat(
             "{\n"
@@ -937,6 +936,8 @@ procedure( addPad( pin )
 
 procedure( addComponentTable( @optional ( symbols 'unbound ) ( alternateParts 'unbound ) )
     let( ( dsn refDes layer value component ( components 'unbound ) )
+
+        pattern = pcreCompile("[\\\"]")
         dsn = axlDBGetDesign()
 
         ; get symbols
@@ -969,6 +970,9 @@ procedure( addComponentTable( @optional ( symbols 'unbound ) ( alternateParts 'u
                 unless( value 
                     value = "undefined"
                 )
+                
+                ; escape " correctly"
+                value = pcreReplace( pattern value "\\\\\"" 0 )
         
                 component = strcat( "{\n"
                     addIndent( strcat(
@@ -1480,8 +1484,6 @@ procedure( addSymbols( @optional ( symbols 'unbound ) )
                 )
             )        
         ) 
-
-        print( silkscreenTop )
 
         ; TOP SILKSCREEN
         if( boundp( 'silkscreenTop ) then
