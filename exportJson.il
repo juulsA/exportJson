@@ -965,6 +965,10 @@ procedure( addComponentTable( @optional ( symbols 'unbound ) ( alternateParts 'u
                 else
                     value = cadr( assoc( 'VALUE, axlDBGetProperties( symbol->component->compdef ) ) )  
                 )
+
+                unless( value 
+                    value = "undefined"
+                )
         
                 component = strcat( "{\n"
                     addIndent( strcat(
@@ -1012,8 +1016,9 @@ procedure( addFootprint( symbol )
             ( sizeCenter 'unbound ) 
             ( bBox list( '(0.0 0.0) '(0.0 0.0) ) )
             xy x y xPos yPos angle bBox xSize ySize footprint ) 
+      
         ; get reference designator
-        refdes = symbol->refdes
+        refdes = symbol->refdes       
 
         ; get symbol layer
         if( symbol->layer == "TOP" then
@@ -1128,8 +1133,8 @@ procedure( addFootprint( symbol )
         yPos = -yCoord( xy ) + yCoord( bBoxCenter ) + yCenter
         
         xRelPos = 0.0
-        yRelPos = 0.0       
- 
+        yRelPos = 0.0     
+             
         general = strcat( 
             "\"ref\": \"" refdes "\",\n"
             "\"center\": [" sprintf( nil "%f" xCoord( xy ) ) ", " sprintf( nil "%f" -yCoord( xy ) ) "],\n"
@@ -1163,8 +1168,8 @@ procedure( addFootprint( symbol )
             ) 
         else        
             pads = "\"pads\": []"  
-        )       
-        
+        )    
+              
         ; DRAWINGS
         drawings = "\"drawings\": []"
 
@@ -1189,7 +1194,7 @@ procedure( addSymbols( @optional ( symbols 'unbound ) )
             ( fields 'unbound ) 
             ( footprints 'unbound ) 
             ( nets 'unbound )
-            dsn footprint id sym value package field children segments element fabrication drawings syms ) 
+            dsn footprint id sym value package field children segments element silksreen fabrication drawings syms ) 
 
         ; get design
         dsn = axlDBGetDesign()
@@ -1205,7 +1210,7 @@ procedure( addSymbols( @optional ( symbols 'unbound ) )
             ; if, symbol has a refdes
             ; make bom
             when( symbol->refdes
-                ; create footprints
+               
                 footprint = addFootprint( symbol )
 
                 ; append to field list            
@@ -1223,6 +1228,11 @@ procedure( addSymbols( @optional ( symbols 'unbound ) )
 
                 value = cadr( assoc( 'VALUE, axlDBGetProperties( symbol->component->compdef ) ) )
                 package = symbol->component->package
+
+                unless( value 
+                    value = "undefined"
+                )
+
                 field = strcat( 
                     "\"" 
                     sprintf( nil "%d" id ) 
@@ -1627,6 +1637,8 @@ procedure( writeJsonFile( @optional ( variant nil ) ( symbols 'unbound ) ( alter
                     fprintf( outPort line )
                     fprintf( outPort "\n" )
                 )
+
+                printf( "Export complete ... \n" )
 
                 close( outPort )
 
