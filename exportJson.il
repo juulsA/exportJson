@@ -1194,7 +1194,7 @@ procedure( addSymbols( @optional ( symbols 'unbound ) )
             ( fields 'unbound ) 
             ( footprints 'unbound ) 
             ( nets 'unbound )
-            dsn footprint id sym value package field children segments element silksreen fabrication drawings syms ) 
+            dsn footprint id sym value package field children segments element silkscreen fabrication drawings syms ) 
 
         ; get design
         dsn = axlDBGetDesign()
@@ -1338,7 +1338,7 @@ procedure( addSymbols( @optional ( symbols 'unbound ) )
                         "REF DES/SILKSCREEN_TOP"
                         when( child->objType == "text"   
                             element = addText( child "refdes" )                   
-                            if( boundp( 'silkscreennTop ) then
+                            if( boundp( 'silkscreenTop ) then
                                 tconc( silkscreenTop element )
                             else
                                 silkscreenTop = tconc( nil element )
@@ -1480,6 +1480,8 @@ procedure( addSymbols( @optional ( symbols 'unbound ) )
                 )
             )        
         ) 
+
+        print( silkscreenTop )
 
         ; TOP SILKSCREEN
         if( boundp( 'silkscreenTop ) then
