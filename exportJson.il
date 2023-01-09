@@ -63,7 +63,7 @@ procedure( addIndent( string @optional ( tabs 1 ) )
 ; }
 ; ```
 
-procedure( addLine( segment @optional ( width 0.1 ) )
+procedure( addLine( segment @optional ( isEtch nil ) ( width 0.1 ) )
     let( ( extents xStart yStart xEnd yEnd element )    
         extents = segment->startEnd
 
@@ -73,13 +73,22 @@ procedure( addLine( segment @optional ( width 0.1 ) )
         xEnd = caadr( extents )        
         yEnd = -cadadr( extents ) ; multiply by -1, s. ibom y convention
 
+        if( isEtch then
+            element = strcat(
+                "{\n\t\"net\": \"" segment->net->name "\",\n"
+            )
+
+            width = segment->width            
+        else 
+            element = "{\n\t\"type\": \"segment\",\n"
+        )
+
         element = strcat( 
-            "{\n" 
-            "\t\"type\": \"segment\",\n"
+            element            
             "\t\"start\": [" sprintf( nil "%f" xStart ) ", " sprintf( nil "%f" yStart ) "],\n"
             "\t\"end\": [" sprintf( nil "%f" xEnd ) ", " sprintf( nil "%f" yEnd ) "],\n"
-            "\t\"width\": " sprintf( nil "%f" width ) "\n"
-            "}" 
+            "\t\"width\": " sprintf( nil "%f" width ) "\n"    
+            "}"        
         )
     )
 )
@@ -132,7 +141,7 @@ procedure( addCircle( segment @optional ( width 0.1 ) )
 ; }
 ; ```
 
-procedure( addArc( segment @optional ( width 0.1 ) )
+procedure( addArc( segment @optional ( isEtch nil ) ( width 0.1 ) )
     let( ( xy xCenter yCenter radius extents xStart yStart xEnd yEnd cw angle1 angle2 startAngle endAngle element )
         xy = segment->xy
         xCenter = car( xy )
@@ -195,14 +204,27 @@ procedure( addArc( segment @optional ( width 0.1 ) )
             )
         )
 
+        if( isEtch then
+            element = strcat(
+                "{\n\t\"net\": \"" segment->net->name "\",\n"
+                "\t\"center\": [" sprintf( nil "%f" xCenter ) ", " sprintf( nil "%f" yCenter ) "],\n"
+            )
+
+            width = segment->width            
+        else 
+            element = strcat( 
+                "{\n\t\"type\": \"arc\",\n"
+                "\t\"start\": [" sprintf( nil "%f" xCenter ) ", " sprintf( nil "%f" yCenter ) "],\n"
+            )
+        )
+
         element = strcat( 
-            "{\n"
-            "\t\"type\": \"arc\",\n"
-            "\t\"width\": " sprintf( nil "%f" width ) ",\n"
-            " \t\"start\": [" sprintf( nil "%f" xCenter ) ", " sprintf( nil "%f" yCenter ) "],\n"
+            element          
+            
             "\t\"radius\": " sprintf( nil "%f" radius ) ",\n"
             "\t\"startangle\": " sprintf( nil "%f" startAngle ) ",\n"
-            "\t\"endangle\": " sprintf( nil "%f" endAngle ) "\n"
+            "\t\"endangle\": " sprintf( nil "%f" endAngle ) ",\n"
+            "\t\"width\": " sprintf( nil "%f" width ) "\n"
             "}" 
         )
     )
@@ -287,19 +309,42 @@ procedure( addText( object @optional ( textType t ) )
     )
 )
 
-procedure( parseSegment( segment )
+procedure( addVia( via layer )
+    let( ( xy extents startEnd element ) 
+        xy = via->xy
+
+        pad = axlDBGetPad( via layer "REGULAR" ) 
+        extents = pad->bBox
+
+        ; calculate the pad diameter
+        width = abs( xCoord( cadr( extents ) ) - xCoord( car( extents ) ) )        
+
+        startEnd = strcat( "[" sprintf( nil "%f" xCoord( xy ) ) ", " sprintf( nil "%f" -yCoord( xy ) ) "]" )
+
+        element = strcat( 
+            "{\n"
+            "\t\"net\": \"" via->net->name "\",\n" 
+            "\t\"start\": " startEnd ",\n"
+            "\t\"end\": " startEnd ",\n"
+            "\t\"width\": " sprintf( nil "%f" width ) "\n"
+            "}"            
+        )         
+    )  
+)
+
+procedure( parseSegment( segment @optional ( isEtch nil ) )
     let( ( element )
         case( segment->objType
             (
                 "line"
-                element = addLine( segment )        
+                element = addLine( segment isEtch )        
             )
             (
                 "arc"
                 if( segment->isCirle then
                     element = addCircle( segment )
                 else
-                    element = addArc( segment )
+                    element = addArc( segment isEtch )
                 )
             )
             (
@@ -1563,6 +1608,154 @@ procedure( addSymbols( @optional ( symbols 'unbound ) )
     )
 )
 
+procedure( addCopper()
+    let( (  ( tracksTop 'unbound ) 
+            ( tracksBottom 'unbound ) 
+            ( zonesTop 'unbound )
+            ( zonesBottom 'unbound )
+            dsn nets ) 
+        dsn = axlDBGetDesign()
+        nets = dsn->nets
+
+        foreach( net nets
+            branches = net->branches
+
+            foreach( branch branches 
+                children = branch->children
+
+
+                foreach( child children 
+                    ;print( child->?);
+                    case( child->objType
+                        (
+                            "path"
+                            ;print( child->layer )
+
+                            segments = child->segments
+
+                            ; loop though segments of each child
+                            foreach( segment segments
+                                element = parseSegment( segment t ) 
+                                
+                                case( child->layer 
+                                    (
+                                        "ETCH/TOP"
+                                        if( boundp( 'tracksTop ) then
+                                            tconc( tracksTop element )
+                                        else
+                                            tracksTop = tconc( nil element )
+                                        ) 
+                                    )
+                                    (
+                                        "ETCH/BOTTOM"
+                                        if( boundp( 'tracksBottom ) then
+                                            tconc( tracksBottom element )
+                                        else
+                                            tracksBottom = tconc( nil element )
+                                        ) 
+                                    )
+                                    (
+                                        t
+                                    )
+                                )                 
+                            )
+
+                        )
+                        (
+                            "pin"
+                        )
+                        (
+                            "shape"
+
+                        )
+                        (
+                            "tee"
+                            print( "Tee was ignored ... \n" )
+
+                        )
+                        (
+                            "via"                                 
+                            element = addVia( child "ETCH/TOP" )                                    
+                            if( boundp( 'tracksTop ) then
+                                tconc( tracksTop element )
+                            else
+                                tracksTop = tconc( nil element )
+                            ) 
+
+                            element = addVia( child "ETCH/BOTTOM" )
+                            if( boundp( 'tracksBottom ) then
+                                tconc( tracksBottom element )
+                            else
+                                tracksBottom = tconc( nil element )
+                            )
+                        )
+                        (
+                            t
+                            printf( "%s was not considered ... " child->objType )
+                        )                        
+                    )
+                )                              
+            )            
+        )   
+
+        ; COPPER TOP
+        if( boundp( 'tracksTop )  then
+            tracksTop = strcat( 
+                "\"F\": [\n" 
+                addIndent( buildString( car( tracksTop ) ",\n" ) ) "\n" 
+                "]"
+            ) 
+        else
+            tracksTop = "\"F\": []"  
+        )
+
+        if( boundp( 'zonesTop )  then
+            zonesTop = strcat( 
+                "\"F\": [\n" 
+                addIndent( buildString( car( zonesTop ) ",\n" ) ) "\n" 
+                "]"
+            ) 
+        else
+            zonesTop = "\"F\": []"  
+        )
+
+        ; COPPER BOTTOM
+        if( boundp( 'tracksBottom )  then
+            tracksBottom = strcat( 
+                "\"B\": [\n" 
+                addIndent( buildString( car( tracksBottom ) ",\n" ) ) "\n" 
+                "]"
+            ) 
+        else
+            tracksBottom = "\"B\": []"  
+        )
+
+        if( boundp( 'zonesBottom )  then
+            zonesBottom = strcat( 
+                "\"B\": [\n" 
+                addIndent( buildString( car( zonesBottom ) ",\n" ) ) "\n" 
+                "]"
+            ) 
+        else
+            zonesBottom = "\"B\": []"  
+        )
+
+        ; track data in JSON format
+        tracks = strcat( "\"tracks\": {\n"
+            addIndent( buildString( list( tracksTop tracksBottom ) ",\n" ) ) "\n"
+            "}"
+        )  
+        
+        ; track data in JSON format
+        zones = strcat( "\"zones\": {\n"
+            addIndent( buildString( list( zonesTop zonesBottom ) ",\n" ) ) "\n"
+            "}"
+        ) 
+
+        copper = buildString( list( tracks zones ) ",\n" )
+    )
+)
+
 procedure( addNets() 
     let( ( (netList 'unbound ) )
         dsn = axlDBGetDesign()
@@ -1625,6 +1818,7 @@ procedure( writeJsonFile( @optional ( variant nil ) ( symbols 'unbound ) ( alter
                                     "\n"
                                 )
                             ) ",\n"
+                            addCopper() ",\n"
                             addNets() "\n" 
                             "},\n"                    
                             addComponentTable( symbols alternateParts )
