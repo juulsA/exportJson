@@ -230,6 +230,30 @@ procedure( addArc( segment @optional ( isEtch nil ) ( width 0.1 ) )
     )
 )
 
+procedure( parseSegment( segment @optional ( isEtch nil ) )
+    let( ( element )
+        case( segment->objType
+            (
+                "line"
+                element = addLine( segment isEtch )        
+            )
+            (
+                "arc"
+                if( segment->isCirle then
+                    element = addCircle( segment )
+                else
+                    element = addArc( segment isEtch )
+                )
+            )
+            (
+                t
+                warn( "Unknown segment ...\n")
+            )        
+        )    
+        element
+    )    
+)
+
 procedure( addText( object @optional ( textType t ) )
     let( ( xy x y angle attr alignment justify textBlock height width thickness text element )
         xy = object->xy
@@ -332,28 +356,167 @@ procedure( addVia( via layer )
     )  
 )
 
-procedure( parseSegment( segment @optional ( isEtch nil ) )
-    let( ( element )
-        case( segment->objType
-            (
-                "line"
-                element = addLine( segment isEtch )        
-            )
-            (
-                "arc"
-                if( segment->isCirle then
-                    element = addCircle( segment )
-                else
-                    element = addArc( segment isEtch )
+procedure( createSvgPath( segments )
+    let( (  ( paths 'unbound ) 
+            xy xArcCenter yArcCenter radius startEnd start end dx dy startAngle endAngle path sweepFlag dAngle largeArcFlag path point svgpath )
+
+        foreach( segment segments
+            case( segment->objType
+                (                    
+                    "arc"                    
+                    xy = segment->xy
+                    xArcCenter = xCoord( xy )
+                    yArcCenter = -yCoord( xy )
+
+                    radius = segment->radius
+                    startEnd = segment->startEnd
+
+                    start = car( startEnd )
+                    end = cadr( startEnd )                    
+                      
+                    dx = xCoord( start ) - xArcCenter
+                    ; because y-axis is inverted
+                    dy = ( -yCoord( start ) - yArcCenter ) * - 1
+
+                    startAngle = axlRadToDeg( atan2( dy dx ) )                    
+
+                    when( negativep( startAngle )
+                        startAngle = startAngle + 360    
+                    )
+
+                    dx = xCoord( end ) - xArcCenter
+                    ; because y-axis is inverted
+                    dy = ( -yCoord( end ) - yArcCenter ) * - 1
+                    
+                    endAngle = axlRadToDeg( atan2( dy dx ) )
+
+                    when( negativep( endAngle )
+                        endAngle = endAngle + 360    
+                    )
+
+                    ; is it the first element in the svgpath
+                    if( lindex( segments segment ) == 1 then
+                        path = buildString( list( "M" sprintf( nil "%f" xCoord( start ) ) sprintf( nil "%f" -yCoord( start ) ) "A" ) " " )
+                    else
+                        path = "A"
+                    )
+
+                    ; set the sweep-flag and the large-arg-flag                  
+                    if( segment->isClockwise then   
+                        sweepFlag = "1"                      
+
+                        if( startAngle > endAngle then
+                            dAngle = startAngle - endAngle
+                        else
+                            dAngle = startAngle + ( 360.0 - endAngle )
+                        )                
+                    else
+                        sweepFlag = "0"
+
+                        if( startAngle > endAngle then
+                            dAngle = endAngle + ( 360.0 - startAngle )
+                        else
+                            dAngle = endAngle - startAngle
+                        ) 
+                    )
+
+                    if( dAngle > 180.0 then
+                        ; make small arc
+                        largeArcFlag = "1"
+                    else
+                        largeArcFlag = "0"
+                    )    
+
+                    ; since start = end for circles
+                    when( segment->isCircle               
+                        end = list( ( xCoord( xy ) - radius ) yCoord( xy ) )
+                    )
+
+                    ; A rx ry x-axis-rotation large-arc-flag sweep-flag x y
+                    path = buildString( list( path sprintf( nil "%f" radius ) sprintf( nil "%f" radius ) sprintf( nil "%f" 0.0 ) largeArcFlag sweepFlag sprintf( nil "%f" xCoord( end ) ) sprintf( nil "%f" -yCoord( end ) ) ) " " )
+                    
+                    if( boundp( 'paths ) then
+                        tconc( paths path )
+                    else
+                        paths = tconc( nil path )
+                    )  
+
+                    ; for circles only
+                    when( segment->isCircle
+                        end = start
+                        path = buildString( list( "A" sprintf( nil "%f" radius ) sprintf( nil "%f" radius ) sprintf( nil "%f" 0.0 ) largeArcFlag sweepFlag sprintf( nil "%f" xCoord( end ) ) sprintf( nil "%f" -yCoord( end ) ) ) " " )
+                        tconc( paths path )
+                    )
+                )   
+                (
+                    "line"
+                    startEnd = segment->startEnd                   
+
+                    foreach( point startEnd
+                        ; is it the first element in the svgpath
+                        if( ( lindex( segments segment ) + lindex( startEnd point ) ) == 2 then
+                            path = "M"
+                        else
+                            path = "L"
+                        )
+
+                        path = buildString( list( path sprintf( nil "%f" xCoord( point ) ) sprintf( nil "%f" -yCoord( point ) ) ) " " )                    
+
+                        if( boundp( 'paths ) then
+                            tconc( paths path )
+                        else
+                            paths = tconc( nil path )
+                        )                         
+                    )                  
                 )
+                (
+                    t
+                    print( "unknown type ... ")
+                )
+                
             )
-            (
-                t
-                warn( "Unknown segment ...\n")
-            )        
-        )    
-        element
-    )    
+        ) 
+        
+        ; close path, add Z ...
+        svgpath = strcat( buildString( car( paths ) " " ) " Z" )
+    )
+)
+
+procedure( createZone( zone )
+    let( (  ( svgpath 'unbound )            
+            net segments path voids )
+
+        net = zone->net->name
+        segments = zone->segments
+
+        ; draw the copper
+        path = createSvgPath( segments )
+
+        if( boundp( 'svgpath ) then
+            tconc( svgpath path )
+        else
+            svgpath = tconc( nil path )
+        )             
+
+        ; draw the voids
+        voids = zone->voids
+
+        foreach( void voids
+            segments = void->segments
+            path = createSvgPath( segments )
+
+            ; void can only exist, if a path already exists
+            tconc( svgpath path )     
+        )   
+    
+        zone = strcat(
+            "{\n"
+            "\t\"svgpath\": \"" buildString( car( svgpath ) " " ) "\",\n"  
+            "\t\"fillrule\": \"evenodd\",\n"
+            "\t\"net\": \"" net "\"\n"
+            "}"
+        )        
+    )
 )
 
 procedure( addBoardGeometry( @optional ( expand list( '( 0.0 0.0) '( 0.0 0.0 ) ) ) )
@@ -1613,7 +1776,7 @@ procedure( addCopper()
             ( tracksBottom 'unbound ) 
             ( zonesTop 'unbound )
             ( zonesBottom 'unbound )
-            dsn nets ) 
+            dsn nets branches children segments track zone ) 
         dsn = axlDBGetDesign()
         nets = dsn->nets
 
@@ -1625,33 +1788,30 @@ procedure( addCopper()
 
 
                 foreach( child children 
-                    ;print( child->?);
                     case( child->objType
                         (
                             "path"
-                            ;print( child->layer )
-
                             segments = child->segments
 
                             ; loop though segments of each child
                             foreach( segment segments
-                                element = parseSegment( segment t ) 
+                                track = parseSegment( segment t ) 
                                 
                                 case( child->layer 
                                     (
                                         "ETCH/TOP"
                                         if( boundp( 'tracksTop ) then
-                                            tconc( tracksTop element )
+                                            tconc( tracksTop track )
                                         else
-                                            tracksTop = tconc( nil element )
+                                            tracksTop = tconc( nil track )
                                         ) 
                                     )
                                     (
                                         "ETCH/BOTTOM"
                                         if( boundp( 'tracksBottom ) then
-                                            tconc( tracksBottom element )
+                                            tconc( tracksBottom track )
                                         else
-                                            tracksBottom = tconc( nil element )
+                                            tracksBottom = tconc( nil track )
                                         ) 
                                     )
                                     (
@@ -1665,8 +1825,30 @@ procedure( addCopper()
                             "pin"
                         )
                         (
-                            "shape"
+                            "shape"                          
+                            zone = createZone( child )
 
+                            case( child->layer 
+                                ( 
+                                    "ETCH/TOP"                                   
+                                    if( boundp( 'zonesTop ) then
+                                        tconc( zonesTop zone )
+                                    else
+                                        zonesTop = tconc( nil zone )
+                                    ) 
+                                )
+                                (
+                                    "ETCH/BOTTOM"
+                                    if( boundp( 'zonesBottom ) then
+                                        tconc( zonesBottom zone )
+                                    else
+                                        zonesBottom = tconc( nil zone )
+                                    ) 
+                                )
+                                (
+                                    t
+                                )                         
+                            )                   
                         )
                         (
                             "tee"
@@ -1945,7 +2127,7 @@ procedure( exportJson()
                 alternateParts = cadr( variantInformation )
 
                 foreach( key variantSymbolList
-                    printf( "Exorting .json for variant: %s\n" key )
+                    printf( "Exporting .json for variant: %s\n" key )
 
                     ; build symbol list
                     symbols = mapcar( lambda( ( refdes ) axlDBFindByName( 'refdes refdes )->symbol ) variantSymbolList[key] )
