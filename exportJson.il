@@ -1779,13 +1779,22 @@ procedure( addCopper()
             dsn nets branches children segments track zone ) 
         dsn = axlDBGetDesign()
         nets = dsn->nets
+        
+        ; find the dummy nets
+        axlClearSelSet()
+        noNet = axlSelectByName("NET" "Dummy" )
+        axlClearSelSet()
+
+        ; append dummy nets to net list, to draw the copper
+        when( noNet
+            nets = nconc( nets noNet )            
+        )
 
         foreach( net nets
             branches = net->branches
 
             foreach( branch branches 
                 children = branch->children
-
 
                 foreach( child children 
                     case( child->objType
@@ -1941,7 +1950,7 @@ procedure( addCopper()
 procedure( addNets() 
     let( ( (netList 'unbound ) )
         dsn = axlDBGetDesign()
-        nets = dsn->nets
+        nets = dsn->nets       
 
         foreach( net nets 
             if( boundp( 'netList ) then
