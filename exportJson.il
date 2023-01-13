@@ -1142,16 +1142,14 @@ procedure( addPad( pin )
     )
 )
 
-procedure( addComponentTable( @optional ( symbols 'unbound ) ( alternateParts 'unbound ) )
-    let( ( dsn refDes layer value component ( components 'unbound ) )
+procedure( addComponentTable( @optional ( variantSymbolList 'unbound ) ( alternateParts 'unbound ) )
+    let( ( pattern dsn symbols refDes layer value component ( components 'unbound ) )
 
         pattern = pcreCompile("[\\\"]")
         dsn = axlDBGetDesign()
 
         ; get symbols
-        unless( boundp( 'symbols )
-            symbols = dsn->symbols   
-        )
+        symbols = dsn->symbols   
 
         foreach( symbol symbols
             refDes = symbol->refdes
@@ -1181,6 +1179,17 @@ procedure( addComponentTable( @optional ( symbols 'unbound ) ( alternateParts 'u
                 
                 ; escape " correctly"
                 value = pcreReplace( pattern value "\\\\\"" 0 )
+
+                ;dnp
+                if( boundp( 'variantSymbolList ) then
+                    if( member( symbol variantSymbolList) then
+                    dnp = " "
+                    else 
+                    dnp = "\"DNP\": \"1\""
+                    )       
+                else
+                    dnp = " "
+                )
         
                 component = strcat( "{\n"
                     addIndent( strcat(
@@ -1188,7 +1197,10 @@ procedure( addComponentTable( @optional ( symbols 'unbound ) ( alternateParts 'u
                         "\"footprint\": \"" symbol->component->package "\",\n"
                         "\"layer\": " layer ",\n"
                         "\"ref\": \"" refDes "\",\n" 
-                        "\"val\": \"" value "\""                
+                        "\"val\": \"" value "\",\n"                
+                        "\"extra_fields\": {\n"
+                        addIndent( dnp ) "\n"
+                        "}"
                         )
                     ) "\n"
                     "}"
@@ -1394,7 +1406,7 @@ procedure( addFootprint( symbol )
     )        
 )
 
-procedure( addSymbols( @optional ( symbols 'unbound ) )
+procedure( addSymbols()
     let( (  ( silkscreenTop 'unbound ) 
             ( silkscreenBottom 'unbound ) 
             ( fabricationTop 'unbound ) 
@@ -1406,15 +1418,14 @@ procedure( addSymbols( @optional ( symbols 'unbound ) )
             ( fields 'unbound ) 
             ( footprints 'unbound ) 
             ( nets 'unbound )
-            dsn footprint id sym value package field children segments element silkscreen fabrication drawings syms ) 
+            dsn symbols footprint id sym value package field children segments element silkscreen fabrication drawings syms ) 
 
         ; get design
         dsn = axlDBGetDesign()
 
         ; get symbols
-        unless( boundp( 'symbols )
-            symbols = dsn->symbols   
-        )
+        symbols = dsn->symbols   
+        
     
         ; loop through symbols
         foreach( symbol symbols
@@ -2002,7 +2013,7 @@ procedure( writeJsonFile( @optional ( variant nil ) ( symbols 'unbound ) ( alter
                                     buildString( list(
                                         addMetadata( dsnName )
                                         addBoardGeometry( list( '( 10.0 10.0 ) '( 10.0 10.0 ) ) )
-                                        addSymbols( symbols )            
+                                        addSymbols()            
                                         )             
                                         ",\n" 
                                     )              
@@ -2126,7 +2137,7 @@ procedure( getVariantInfo()
 )
 
 procedure( exportJson()
-    let( ( ( variantFile "Variants.lst" ) variantInformation variantSymbolList alternateParts )
+    let( ( ( variantFile "Variants.lst" ) variantInformation variantSymbolList alternateParts symbols )
 
         if( isFile( variantFile ) then
             variantInformation = getVariantInfo()
