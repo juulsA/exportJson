@@ -1143,7 +1143,7 @@ procedure( addPad( pin )
 )
 
 procedure( addComponentTable( @optional ( variantSymbolList 'unbound ) ( alternateParts 'unbound ) )
-    let( ( pattern dsn symbols refDes layer value component ( components 'unbound ) )
+    let( ( pattern dsn symbols refDes layer value ( extraFields 'unbound ) userProperties extraField component ( components 'unbound ) )
 
         pattern = pcreCompile("[\\\"]")
         dsn = axlDBGetDesign()
@@ -1181,14 +1181,31 @@ procedure( addComponentTable( @optional ( variantSymbolList 'unbound ) ( alterna
                 value = pcreReplace( pattern value "\\\\\"" 0 )
 
                 ;dnp
-                if( boundp( 'variantSymbolList ) then
-                    if( member( symbol variantSymbolList) then
-                    dnp = " "
-                    else 
-                    dnp = "\"DNP\": \"1\""
-                    )       
+                when( boundp( 'variantSymbolList )
+                    unless( member( symbol variantSymbolList)
+                        extraFields = tconc( nil "\"DNP\": \"1\"" )
+                    )  
+                )
+
+                ; add extra fields
+                userProperties = axlDBGetProperties( symbol->component->compdef )
+
+                foreach( userProperty userProperties
+                    extraField = strcat( "\"" sprintf( nil "%L" car( userProperty) ) "\": \"" cadr( userProperty ) "\"" )
+
+                    if( boundp( 'extraFields ) then
+                        tconc( extraFields extraField )
+                    else
+                        extraFields = tconc( nil extraField )
+                    )
+                )
+
+                ; make list
+                if( boundp( 'extraFields ) then
+                    extraFields = car( extraFields )
+                    extraFields = strcat( addIndent( buildString( extraFields ",\n" ) ) "\n" )
                 else
-                    dnp = " "
+                    extraFields = ""                    
                 )
         
                 component = strcat( "{\n"
@@ -1199,7 +1216,7 @@ procedure( addComponentTable( @optional ( variantSymbolList 'unbound ) ( alterna
                         "\"ref\": \"" refDes "\",\n" 
                         "\"val\": \"" value "\",\n"                
                         "\"extra_fields\": {\n"
-                        addIndent( dnp ) "\n"
+                        extraFields
                         "}"
                         )
                     ) "\n"
@@ -1212,6 +1229,9 @@ procedure( addComponentTable( @optional ( variantSymbolList 'unbound ) ( alterna
                 else
                     components = tconc( nil component )
                 )
+
+                ; unbind variable
+                extraFields = 'unbound
             )
         )
 
