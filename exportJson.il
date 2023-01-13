@@ -1145,7 +1145,8 @@ procedure( addPad( pin )
 procedure( addComponentTable( @optional ( variantSymbolList 'unbound ) ( alternateParts 'unbound ) )
     let( ( pattern dsn symbols refDes layer value ( extraFields 'unbound ) userProperties extraField component ( components 'unbound ) )
 
-        pattern = pcreCompile("[\\\"]")
+        pattern = pcreCompile( "[\\\"]" )
+        percent = pcreCompile( "%" )
         dsn = axlDBGetDesign()
 
         ; get symbols
@@ -1178,6 +1179,7 @@ procedure( addComponentTable( @optional ( variantSymbolList 'unbound ) ( alterna
                 )
                 
                 ; escape " correctly"
+                value = pcreReplace( percent value "%%" 0 )
                 value = pcreReplace( pattern value "\\\\\"" 0 )
 
                 ;dnp
@@ -1191,7 +1193,9 @@ procedure( addComponentTable( @optional ( variantSymbolList 'unbound ) ( alterna
                 userProperties = axlDBGetProperties( symbol->component->compdef )
 
                 foreach( userProperty userProperties
-                    extraField = strcat( "\"" sprintf( nil "%L" car( userProperty) ) "\": \"" cadr( userProperty ) "\"" )
+                    extraField = strcat( "\"" sprintf( nil "%L" car( userProperty) ) "\": \"" pcreReplace( pattern cadr( userProperty ) "\\\\\"" 0 ) "\"" )
+                    ; escape fields correctly
+                    extraField = pcreReplace( percent extraField "%%" 0 )
 
                     if( boundp( 'extraFields ) then
                         tconc( extraFields extraField )
