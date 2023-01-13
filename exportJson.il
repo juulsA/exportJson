@@ -1406,7 +1406,7 @@ procedure( addFootprint( symbol )
     )        
 )
 
-procedure( addSymbols()
+procedure( addSymbols( @optional ( variantSymbolList 'unbound ) ( excludeTexts nil ) )
     let( (  ( silkscreenTop 'unbound ) 
             ( silkscreenBottom 'unbound ) 
             ( fabricationTop 'unbound ) 
@@ -1418,23 +1418,33 @@ procedure( addSymbols()
             ( fields 'unbound ) 
             ( footprints 'unbound ) 
             ( nets 'unbound )
-            dsn symbols footprint id sym value package field children segments element silkscreen fabrication drawings syms ) 
+            dsn symbols footprint excludeText id sym value package field children segments element silkscreen fabrication drawings syms ) 
 
         ; get design
         dsn = axlDBGetDesign()
 
         ; get symbols
-        symbols = dsn->symbols   
-        
+        symbols = dsn->symbols           
     
         ; loop through symbols
         foreach( symbol symbols
             ; fill bom
             ; if, symbol has a refdes
             ; make bom
-            when( symbol->refdes
-               
+            when( symbol->refdes               
+                ; adding all pads
                 footprint = addFootprint( symbol )
+
+                ; check if symbol is in variantS
+                if( boundp( 'variantSymbolList ) && excludeTexts then
+                    if( member( symbol variantSymbolList) then
+                        excludeText = nil
+                    else 
+                        excludeText = t
+                    )       
+                else
+                    excludeText = nil                    
+                )
 
                 ; append to field list            
                 if( boundp( 'footprints ) then
@@ -1522,7 +1532,7 @@ procedure( addSymbols()
                                 )                  
                             )
                         else
-                            when( child->objType == "text"
+                            when( child->objType == "text" && not( excludeText )
                                 element = addText( child )
                                 if( boundp( 'silkscreenTop ) then
                                     tconc( silkscreenTop element )
@@ -1547,7 +1557,7 @@ procedure( addSymbols()
                                 )                  
                             )
                         else
-                            when( child->objType == "text"
+                            when( child->objType == "text" && not( excludeText )
                                 element = addText( child )  
                                 if( boundp( 'silkscreenBottom ) then
                                     tconc( silkscreenBottom element )
@@ -1559,7 +1569,7 @@ procedure( addSymbols()
                     )
                     (
                         "REF DES/SILKSCREEN_TOP"
-                        when( child->objType == "text"   
+                        when( child->objType == "text" && not( excludeText )   
                             element = addText( child "refdes" )                   
                             if( boundp( 'silkscreenTop ) then
                                 tconc( silkscreenTop element )
@@ -1570,7 +1580,7 @@ procedure( addSymbols()
                     )      
                     (
                         "REF DES/SILKSCREEN_BOTTOM"
-                        when( child->objType == "text"   
+                        when( child->objType == "text" && not( excludeText )   
                             element = addText( child "refdes" )                   
                             if( boundp( 'silkscreenBottom ) then
                                 tconc( silkscreenBottom element )
@@ -1581,7 +1591,7 @@ procedure( addSymbols()
                     )  
                     (
                         "COMPONENT VALUE/SILKSCREEN_TOP"
-                        when( child->objType == "text"   
+                        when( child->objType == "text" && not( excludeText )   
                             element = addText( child "value" )                   
                             if( boundp( 'silkscreenTop ) then
                                 tconc( silkscreenTop element )
@@ -1592,7 +1602,7 @@ procedure( addSymbols()
                     )      
                     (
                         "COMPONENT VALUE/SILKSCREEN_BOTTOM"
-                        when( child->objType == "text"   
+                        when( child->objType == "text" && not( excludeText )   
                             element = addText( child "value" )                   
                             if( boundp( 'silkscreenBottom ) then
                                 tconc( silkscreenBottom element )
@@ -1616,7 +1626,7 @@ procedure( addSymbols()
                                 )                  
                             )    
                         else
-                            when( child->objType == "text"
+                            when( child->objType == "text" && not( excludeText )
                                 element = addText( child )  
                                 if( boundp( 'fabricationTop ) then
                                     tconc( fabricationTop element )
@@ -1641,7 +1651,7 @@ procedure( addSymbols()
                                 )                  
                             )
                         else
-                            when( child->objType == "text"
+                            when( child->objType == "text" && not( excludeText )
                                 element = addText( child ) 
                                 if( boundp( 'fabricationBottom ) then
                                     tconc( fabricationBottom element )
@@ -1653,7 +1663,7 @@ procedure( addSymbols()
                     )        
                     (
                         "REF DES/ASSEMBLY_TOP"
-                        when( child->objType == "text"   
+                        when( child->objType == "text" && not( excludeText )   
                             element = addText( child "refdes" )                   
                             if( boundp( 'fabricationTop ) then
                                 tconc( fabricationTop element )
@@ -1664,7 +1674,7 @@ procedure( addSymbols()
                     )      
                     (
                         "REF DES/ASSEMBLY_BOTTOM"
-                        when( child->objType == "text"   
+                        when( child->objType == "text" && not( excludeText )   
                             element = addText( child "refdes" )                   
                             if( boundp( 'fabricationBottom ) then
                                 tconc( fabricationBottom element )
@@ -1675,7 +1685,7 @@ procedure( addSymbols()
                     )    
                     (
                         "COMPONENT VALUE/ASSEMBLY_TOP"
-                        when( child->objType == "text"   
+                        when( child->objType == "text" && not( excludeText )   
                             element = addText( child "value" )  
                             if( boundp( 'fabricationTop ) then
                                 tconc( fabricationTop element )
@@ -1686,7 +1696,7 @@ procedure( addSymbols()
                     )      
                     (
                         "COMPONENT VALUE/ASSEMBLY_BOTTOM"
-                        when( child->objType == "text"   
+                        when( child->objType == "text" && not( excludeText )   
                             element = addText( child "value" )              
                             if( boundp( 'fabricationBottom ) then
                                 tconc( fabricationBottom element )
@@ -1976,7 +1986,7 @@ procedure( addNets()
     )
 )
 
-procedure( writeJsonFile( @optional ( variant nil ) ( symbols 'unbound ) ( alternateParts 'unbound ) )
+procedure( writeJsonFile( @optional ( variant nil ) ( symbols 'unbound ) ( alternateParts 'unbound ) ( excludeTexts nil ) )
     let( ( outPort pcbData )
         workingDir = getWorkingDir()
         dsnName = axlCurrentDesign()
@@ -2013,7 +2023,7 @@ procedure( writeJsonFile( @optional ( variant nil ) ( symbols 'unbound ) ( alter
                                     buildString( list(
                                         addMetadata( dsnName )
                                         addBoardGeometry( list( '( 10.0 10.0 ) '( 10.0 10.0 ) ) )
-                                        addSymbols()            
+                                        addSymbols( symbols excludeTexts )            
                                         )             
                                         ",\n" 
                                     )              
@@ -2136,7 +2146,7 @@ procedure( getVariantInfo()
     )    
 )
 
-procedure( exportJson()
+procedure( exportJson( @optional ( excludeTexts nil ) )
     let( ( ( variantFile "Variants.lst" ) variantInformation variantSymbolList alternateParts symbols )
 
         if( isFile( variantFile ) then
@@ -2152,7 +2162,7 @@ procedure( exportJson()
                     ; build symbol list
                     symbols = mapcar( lambda( ( refdes ) axlDBFindByName( 'refdes refdes )->symbol ) variantSymbolList[key] )
 
-                    writeJsonFile( key symbols alternateParts )                
+                    writeJsonFile( key symbols alternateParts excludeTexts )                
                 )        
             else
                 error( "Tables could not be created ... " ) 
