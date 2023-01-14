@@ -18,7 +18,7 @@ The script uses the "project name" ( optional:  + "_" + "variant" ) as the file 
 If no `variants.lst` is present in the `allegro` directory, a warning is displayed in the command prompt and all components are considered in the json file; otherwise a json file for each variant is created and the `DNP` field in the `extra_fields` is set to mark unplaced components.
 When an alternate part are used, the value of the part is changed to the value of the alternate part.
 
-By passing the optional argument `excludeTexts = t` to the export function ( `exportJson( t )` ) all texts of an unplaced component is ignored.
+By passing the optional argument `excludeTexts = t` to the export function ( `exportJson( t )` ) all texts of an unplaced component are ignored.
 
 ## Custom properties
 Any custom properties assigned to a component are added to the `extra_fields`.
