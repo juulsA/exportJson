@@ -12,7 +12,11 @@ To make the skill script available for use, you need to copy the `exportJson.il`
 Once the script is loaded successfully, you can start exporting the json file by typing `exportJson + enter` in the command line.
 A directory named `json` is created in your project folder containing the `.json`.
 
-The script uses the "project name" ( optional:  + "_" + "variant" ) as the file name and asks for the optional arguments `revision` and `company` but you can pass the revision and company name as arguments to the [`addMetadata`](https://github.com/juulsA/exportJson/blob/00f01b0105800a2920b9ec6f3041799332a9ff84/exportJson.il#L3) function by changing this [line](https://github.com/juulsA/exportJson/blob/00f01b0105800a2920b9ec6f3041799332a9ff84/exportJson.il#L2048) to your needs. The input prompt is then suppressed.
+The script uses the "project name" ( optional:  + "_" + "variant" ) as the file name and asks for the optional arguments `revision` and `company`, but you can pass the revision and company name as arguments to the [`addMetadata`](https://github.com/juulsA/exportJson/blob/00f01b0105800a2920b9ec6f3041799332a9ff84/exportJson.il#L3) function by changing this [line](https://github.com/juulsA/exportJson/blob/00f01b0105800a2920b9ec6f3041799332a9ff84/exportJson.il#L2048) to your needs. The input prompt is then suppressed.
+
+![revision](https://user-images.githubusercontent.com/46630002/212728309-e5f75dbe-876b-490f-bc3a-94e51badf1ee.png)
+
+![company](https://user-images.githubusercontent.com/46630002/212728346-52d4a89a-e3ee-4e44-bc96-fa3d9ad2f203.png)
 
 ## Variants and alternate parts
 If no `variants.lst` is present in the `allegro` directory, a warning is displayed in the command prompt and all components are considered in the json file; otherwise a json file for each variant is created and the `DNP` field in the `extra_fields` is set to mark unplaced components.
