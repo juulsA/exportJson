@@ -484,22 +484,21 @@ procedure( arcToSvgPath( isFirst xy startEnd isClockwise @optional ( radius nil 
         when( isCircle
             end = start
 
-            path = strcat( path 
-                buildString( 
-                    list( 
-                        "A"
-                        sprintf( nil "%f" radius ) 
-                        sprintf( nil "%f" radius ) 
-                        sprintf( nil "%f" 0.0 ) 
-                        largeArcFlag 
-                        sweepFlag 
-                        sprintf( nil "%f" xCoord( end ) ) 
-                        sprintf( nil "%f" yCoord( end ) ) 
-                    ) 
-                    " "
-                )
+            path = buildString( 
+                list( 
+                    path
+                    "A"
+                    sprintf( nil "%f" radius ) 
+                    sprintf( nil "%f" radius ) 
+                    sprintf( nil "%f" 0.0 ) 
+                    largeArcFlag 
+                    sweepFlag 
+                    sprintf( nil "%f" xCoord( end ) ) 
+                    sprintf( nil "%f" yCoord( end ) ) 
+                ) 
+                " "
             )
-        )
+        )    
         path      
     )
 )

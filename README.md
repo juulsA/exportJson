@@ -37,5 +37,6 @@ As an example I have done the json export and the ibom creation for the [AD-FMCO
 
 ## Open tasks
 - [x] changed `excludeTexts` to `excludeDNP` in the `exportJson` function to suppress all fabrication and silkscreen data for `DNP` components ( inspired by [qu1ck](https://github.com/openscopeproject/InteractiveHtmlBom/issues/336#issuecomment-1323722800) )
-- [ ] generate pads as `svgpaths` instead of `polygons`
-- [ ] generate the `font_data` from allegro and append it to the json file
+- [x] generate pads as `svgpaths` instead of `polygons`
+- [ ] generate text as svgpaths ( providing `font_data` is not possible )
+- [ ] handle "donut" pads
