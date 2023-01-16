@@ -356,118 +356,218 @@ procedure( addVia( via layer )
     )  
 )
 
+procedure( lineToSvgPath( isFirst points ) 
+    let( ( ( path 'unbound ) firstCommand segment )
+
+        ; is it the first element in the svgpath
+        if( isFirst then
+            firstCommand = "M "
+        else
+            firstCommand = "L "
+        )
+
+        foreach( point points      
+            segment = buildString( 
+                list( 
+                    sprintf( nil "%f" xCoord( point ) ) 
+                    sprintf( nil "%f" yCoord( point ) )              
+                )             
+                " "
+            )     
+
+            if( boundp( 'path ) then
+                tconc( path segment )
+            else
+                path = tconc( nil segment )
+            ) 
+        )  
+        ; return svgpath    
+        path = strcat( firstCommand buildString( car( path ) "L " ) )
+    )
+)
+
+procedure( arcToSvgPath( isFirst xy startEnd isClockwise @optional ( radius nil ) ( isCircle nil ) ) 
+    let( ( start end xArcCenter yArcCenter dx dy startAngle endAngle path sweepFlag dAngle largeArcFlag ) 
+        start = car( startEnd )
+        end = cadr( startEnd )
+
+        xArcCenter = xCoord( xy )
+        yArcCenter = yCoord( xy )                 
+            
+        dx = xCoord( start ) - xArcCenter
+        ; reverse inverted y-axis for angle calculation
+        dy = ( yCoord( start ) - yArcCenter ) * - 1 
+
+        ; if no radius was passed, calculate radius
+        unless( radius
+            radius = sqrt( expt( dx 2 ) + expt( dy 2 ) )
+        )
+
+        startAngle = axlRadToDeg( atan2( dy dx ) )   
+             
+        when( negativep( startAngle )
+            startAngle = startAngle + 360    
+        )
+
+        dx = xCoord( end ) - xArcCenter
+        ; reverse inverted y-axis for angle calculation
+        dy = ( yCoord( end ) - yArcCenter ) * - 1
+        
+        endAngle = axlRadToDeg( atan2( dy dx ) )
+
+        when( negativep( endAngle )
+            endAngle = endAngle + 360    
+        )
+
+        ; is it the first element in the svgpath
+        if( isFirst then
+            path = buildString( 
+                list( 
+                    "M" 
+                    sprintf( nil "%f" xCoord( start ) ) 
+                    sprintf( nil "%f" yCoord( start ) ) 
+                    "A"
+                ) 
+                " "
+            )
+        else
+            path = "A"
+        )
+
+        ; set the sweep-flag and the large-arg-flag                  
+        if( isClockwise then   
+            sweepFlag = "1"                      
+
+            if( startAngle > endAngle then
+                dAngle = startAngle - endAngle
+            else
+                dAngle = startAngle + ( 360.0 - endAngle )
+            )                
+        else
+            sweepFlag = "0"
+
+            if( startAngle > endAngle then
+                dAngle = endAngle + ( 360.0 - startAngle )
+            else
+                dAngle = endAngle - startAngle
+            ) 
+        )
+
+        if( dAngle > 180.0 then
+            ; make small arc
+            largeArcFlag = "1"
+        else
+            largeArcFlag = "0"
+        )    
+
+        ; since start = end for circles
+        when( isCircle               
+            end = list( ( xCoord( xy ) - radius ) yCoord( xy ) )
+        )
+
+        ; A rx ry x-axis-rotation large-arc-flag sweep-flag x y
+        path = buildString( 
+            list( 
+                path 
+                sprintf( nil "%f" radius ) 
+                sprintf( nil "%f" radius ) 
+                sprintf( nil "%f" 0.0 ) 
+                largeArcFlag 
+                sweepFlag 
+                sprintf( nil "%f" xCoord( end ) ) 
+                sprintf( nil "%f" yCoord( end ) ) 
+            ) 
+            " "
+        )
+       
+        ; for circles only
+        when( isCircle
+            end = start
+
+            path = strcat( path 
+                buildString( 
+                    list( 
+                        "A"
+                        sprintf( nil "%f" radius ) 
+                        sprintf( nil "%f" radius ) 
+                        sprintf( nil "%f" 0.0 ) 
+                        largeArcFlag 
+                        sweepFlag 
+                        sprintf( nil "%f" xCoord( end ) ) 
+                        sprintf( nil "%f" yCoord( end ) ) 
+                    ) 
+                    " "
+                )
+            )
+        )
+        path      
+    )
+)
+
 procedure( createSvgPath( segments )
     let( (  ( paths 'unbound ) 
-            xy xArcCenter yArcCenter radius startEnd start end dx dy startAngle endAngle path sweepFlag dAngle largeArcFlag path point svgpath )
+            isFirst arcCenter xArcCenter yArcCenter 
+            radius isClockwise isCircle startEnd start end path svgpath )
 
         foreach( segment segments
             case( segment->objType
                 (                    
-                    "arc"                    
-                    xy = segment->xy
-                    xArcCenter = xCoord( xy )
-                    yArcCenter = -yCoord( xy )
+                    "arc"        
+                    isFirst = ( lindex( segments segment ) == 1 )
+
+                    arcCenter = segment->xy
+                    xArcCenter = xCoord( arcCenter )
+                    yArcCenter = -yCoord( arcCenter )
+                    arcCenter = list( xArcCenter yArcCenter )
 
                     radius = segment->radius
+
+                    isClockwise = segment->isClockwise
+                    isCircle = segment->isCircle
+
                     startEnd = segment->startEnd
 
                     start = car( startEnd )
-                    end = cadr( startEnd )                    
-                      
-                    dx = xCoord( start ) - xArcCenter
-                    ; because y-axis is inverted
-                    dy = ( -yCoord( start ) - yArcCenter ) * - 1
+                    start = list( xCoord( start ) -yCoord( start ) )
 
-                    startAngle = axlRadToDeg( atan2( dy dx ) )                    
-
-                    when( negativep( startAngle )
-                        startAngle = startAngle + 360    
-                    )
-
-                    dx = xCoord( end ) - xArcCenter
-                    ; because y-axis is inverted
-                    dy = ( -yCoord( end ) - yArcCenter ) * - 1
+                    end = cadr( startEnd )
+                    end = list( xCoord( end ) -yCoord( end ) )
                     
-                    endAngle = axlRadToDeg( atan2( dy dx ) )
+                    startEnd = list( start end )                    
 
-                    when( negativep( endAngle )
-                        endAngle = endAngle + 360    
-                    )
+                    ; create svgpath
+                    path = arcToSvgPath( isFirst arcCenter startEnd isClockwise radius isCircle )
 
-                    ; is it the first element in the svgpath
-                    if( lindex( segments segment ) == 1 then
-                        path = buildString( list( "M" sprintf( nil "%f" xCoord( start ) ) sprintf( nil "%f" -yCoord( start ) ) "A" ) " " )
-                    else
-                        path = "A"
-                    )
-
-                    ; set the sweep-flag and the large-arg-flag                  
-                    if( segment->isClockwise then   
-                        sweepFlag = "1"                      
-
-                        if( startAngle > endAngle then
-                            dAngle = startAngle - endAngle
-                        else
-                            dAngle = startAngle + ( 360.0 - endAngle )
-                        )                
-                    else
-                        sweepFlag = "0"
-
-                        if( startAngle > endAngle then
-                            dAngle = endAngle + ( 360.0 - startAngle )
-                        else
-                            dAngle = endAngle - startAngle
-                        ) 
-                    )
-
-                    if( dAngle > 180.0 then
-                        ; make small arc
-                        largeArcFlag = "1"
-                    else
-                        largeArcFlag = "0"
-                    )    
-
-                    ; since start = end for circles
-                    when( segment->isCircle               
-                        end = list( ( xCoord( xy ) - radius ) yCoord( xy ) )
-                    )
-
-                    ; A rx ry x-axis-rotation large-arc-flag sweep-flag x y
-                    path = buildString( list( path sprintf( nil "%f" radius ) sprintf( nil "%f" radius ) sprintf( nil "%f" 0.0 ) largeArcFlag sweepFlag sprintf( nil "%f" xCoord( end ) ) sprintf( nil "%f" -yCoord( end ) ) ) " " )
-                    
+                    ; append to list
                     if( boundp( 'paths ) then
                         tconc( paths path )
                     else
                         paths = tconc( nil path )
                     )  
-
-                    ; for circles only
-                    when( segment->isCircle
-                        end = start
-                        path = buildString( list( "A" sprintf( nil "%f" radius ) sprintf( nil "%f" radius ) sprintf( nil "%f" 0.0 ) largeArcFlag sweepFlag sprintf( nil "%f" xCoord( end ) ) sprintf( nil "%f" -yCoord( end ) ) ) " " )
-                        tconc( paths path )
-                    )
                 )   
                 (
                     "line"
-                    startEnd = segment->startEnd                   
+                    isFirst = ( lindex( segments segment ) == 1 )
 
-                    foreach( point startEnd
-                        ; is it the first element in the svgpath
-                        if( ( lindex( segments segment ) + lindex( startEnd point ) ) == 2 then
-                            path = "M"
-                        else
-                            path = "L"
-                        )
+                    startEnd = segment->startEnd  
+                    
+                    start = car( startEnd )
+                    start = list( xCoord( start ) -yCoord( start ) )
 
-                        path = buildString( list( path sprintf( nil "%f" xCoord( point ) ) sprintf( nil "%f" -yCoord( point ) ) ) " " )                    
+                    end = cadr( startEnd )
+                    end = list( xCoord( end ) -yCoord( end ) )
+                    
+                    startEnd = list( start end )  
 
-                        if( boundp( 'paths ) then
-                            tconc( paths path )
-                        else
-                            paths = tconc( nil path )
-                        )                         
-                    )                  
+                    ; create svgpath
+                    path = lineToSvgPath( isFirst startEnd )  
+
+                    ; append to list
+                    if( boundp( 'paths ) then
+                        tconc( paths path )
+                    else
+                        paths = tconc( nil path )
+                    )               
                 )
                 (
                     t
@@ -477,7 +577,7 @@ procedure( createSvgPath( segments )
             )
         ) 
         
-        ; close path, add Z ...
+        ; combine and all subpaths and close path ( add Z )
         svgpath = strcat( buildString( car( paths ) " " ) " Z" )
     )
 )
@@ -652,141 +752,71 @@ procedure( getBboxSize( segments xOffset yOffset rotation )
     )
 )
 
-procedure( addArcPoints( xOffset yOffset startAngle endAngle radius clockWise nbPoints )
-    let( ( ( points 'unbound ) dPhi angle point )
-
-        if( clockWise then       
-            ; dPhi must be negative     
-            when( startAngle < endAngle
-                startAngle = startAngle + 360.0
-            )
-            dPhi = ( endAngle - startAngle ) / ( nbPoints - 1 ) 
-        else
-            ; dPhi must be positive
-            when( endAngle < startAngle 
-                endAngle = endAngle + 360.0
-            )
-            dPhi = ( endAngle - startAngle ) / ( nbPoints - 1 )   
-        )              
-
-        for( i 0 ( nbPoints - 1 )
-            angle = axlDegToRad( startAngle + i * dPhi )
-            point = strcat(                
-                "["
-                sprintf( nil "%f" ( xOffset + radius * cos( angle ) ) ) 
-                ", "                
-                sprintf( nil "%f" ( yOffset - radius * sin( angle ) ) )
-                "]"
-            )
-
-            if( boundp( 'points ) then
-                tconc( points point )
-            else
-                points = tconc( nil point )
-            ) 
-        )
-        points = car( points )
-    )
-)
-
-procedure( addPoly( figure xOffset yOffset rotation )
-    let( (  ( nbArcPoints 20 ) ( points 'unbound ) segments xy x y arcCenter xArcCenter yArcCenter loopIteration prevSegment prevEndpoint dx dy radius startAngle endAngle clockWise arcPointspoint )
-    
-        segments = axlPathGetPathSegs( car( figure ) )
+procedure( figureToSvgPath( figure xOffset yOffset rotation )
+    let( (  ( paths 'unbound ) segments endPoint x y xArcCenter yArcCenter 
+        isClockwise loopIteration prevSegment prevEndpoint 
+        xPrevEndpoint yPrevEndpoint startPoint path svgpath )
         
+        ; convert path to segments
+        segments = axlPathGetPathSegs( car( figure ) )
+
         foreach( segment segments          
 
-            xy = segment->_endPoint
-            x = car( xy ) - xOffset
-            y = cadr( xy ) * - 1 - yOffset
+            endPoint = segment->_endPoint
+            x = xCoord( endPoint ) - xOffset
+            y = yCoord( endPoint ) * - 1 - yOffset
 
-            xy = rotateVector( list( x y ) rotation ) 
-            x = car( xy )
-            y = cadr( xy )
-          
-            if( segment->_arcCenter then               
-
+            endPoint = rotateVector( list( x y ) rotation )     
+            
+            if( segment->_arcCenter then                    
+                ; ARC             
                 arcCenter = segment->_arcCenter
-                xArcCenter = car( arcCenter ) - xOffset
-                yArcCenter = cadr( arcCenter ) * -1 - yOffset
-
+                xArcCenter = xCoord( arcCenter ) - xOffset
+                yArcCenter = yCoord( arcCenter ) * -1 - yOffset
                 ; perform vector rotation
                 arcCenter = rotateVector( list( xArcCenter yArcCenter ) rotation )
-                xArcCenter = car( arcCenter )
-                yArcCenter = cadr( arcCenter )
 
+                isClockwise = segment->_arcClockwise                
+
+                ; check, if segment is first
                 loopIteration = lindex( segments segment )
+                isFirst = ( loopIteration == 1 )
 
-                if( loopIteration == 1 then
+                if( isFirst then
                     prevSegment = nthelem( length( segments ) segments )                    
                 else 
                     prevSegment = nthelem( sub1( loopIteration ) segments )  
                 )
 
                 prevEndpoint = prevSegment->_endPoint
-
-                xPrevEndpoint = car( prevEndpoint ) - xOffset
-                yPrevEndpoint = cadr( prevEndpoint ) * -1 - yOffset
+                xPrevEndpoint = xCoord( prevEndpoint ) - xOffset
+                yPrevEndpoint = yCoord( prevEndpoint ) * -1 - yOffset
                 
                 ; because the y-axis is inverted, the vector needs to be rotated in direction of the rotation to make rotation undone
-                prevEndpoint = rotateVector( list( xPrevEndpoint yPrevEndpoint ) rotation )
-                
-                dx = car( prevEndpoint ) - xArcCenter
-                ; because y-axis is inverted
-                dy = ( cadr( prevEndpoint ) - yArcCenter ) * - 1 
-                
-                radius = sqrt( expt( dx 2 ) + expt( dy 2 ) )
+                startPoint = rotateVector( list( xPrevEndpoint yPrevEndpoint ) rotation )               
 
-                startAngle = axlRadToDeg( atan2( dy dx ) )
-                ;print( startAngle)
+                ;arcToSvgPath( isFirst xy startEnd isClockwise @optional ( radius nil ) ( isCircle nil ) )  
+                path = arcToSvgPath( isFirst arcCenter list( startPoint endPoint ) isClockwise )
 
-                when( negativep( startAngle )
-                    startAngle = startAngle + 360    
-                )
-
-                dx = car( xy ) - xArcCenter
-                ; because y-axis is inverted
-                dy = ( cadr( xy ) - yArcCenter ) * - 1
-                
-                endAngle = axlRadToDeg( atan2( dy dx ) )
-
-                when( negativep( endAngle )
-                    endAngle = endAngle + 360    
-                )
-                
-                clockWise = segment->_arcClockwise            
-                
-                ; make arc points, set to 20 points
-                arcPoints = addArcPoints( xArcCenter yArcCenter startAngle endAngle radius clockWise nbArcPoints )   
-                
-                if( boundp( 'points ) then
-                    foreach( entry arcPoints
-                        tconc( points entry )
-                    )          
-                else                
-                    points = tconc( nil car( arcPoints ))
-                    foreach( entry cdr( arcPoints )
-                        tconc( points entry )
-                    ) 
-                )
-            else                
-
-                point = strcat(
-                    "["
-                    sprintf( nil "%f" x )
-                    ", "
-                    sprintf( nil "%f" y )
-                    "]"
-                )
-
-                if( boundp( 'points ) then
-                    tconc( points point )
+                ; append to list
+                if( boundp( 'paths ) then
+                    tconc( paths path )
                 else
-                    points = tconc( nil point )
+                    paths = tconc( nil path )
                 ) 
+            else         
+                ; LINE
+                isFirst = ( lindex( segments segment ) == 1 )
+                path = lineToSvgPath( isFirst list( endPoint ) )  
+
+                if( boundp( 'paths ) then
+                    tconc( paths path )
+                else
+                    paths = tconc( nil path )
+                )     
             )             
         )                   
-        points = buildString( car( points ) ",\n")
+        svgpath = strcat( buildString( car( paths ) " " ) " Z" )
     ) 
 )
 
@@ -796,7 +826,7 @@ procedure( addPad( pin )
             ( pads 'unbound ) 
             xy xPos yPos pos net angle pinOnes pinNumber 
             type padstack startEnd layers pad 
-            drillShape drillSize bBox xSize ySize size poly ( properties 'unbound ) shape )   
+            drillShape drillSize bBox xSize ySize size poly svgpath shape )   
 
         ; get position
         xy = pin->xy
@@ -937,14 +967,11 @@ procedure( addPad( pin )
                     shape = "\"custom\""
     
                     when( pad->figure                     
-                        poly = addPoly( pad->figure xPos yPos pin->rotation )
-                        properties = strcat( 
-                            "\"polygons\": [\n"
-                            "\t[\n" 
-                            addIndent( poly 2 ) "\n"
-                            "\t]\n"
-                            "]"                                           
-                        )                                               
+                        svgpath = strcat( 
+                            "\"svgpath\": \"" 
+                            figureToSvgPath( pad->figure xPos yPos pin->rotation )                            
+                            "\""                                           
+                        )                                              
                     )
                 )                          
                 ( 
@@ -952,14 +979,11 @@ procedure( addPad( pin )
                     shape = "\"custom\""
     
                     when( pad->figure                     
-                        poly = addPoly( pad->figure xPos yPos pin->rotation )
-                        properties = strcat( 
-                            "\"polygons\": [\n"
-                            "\t[\n" 
-                            addIndent( poly 2 ) "\n"
-                            "\t]\n"
-                            "]"                                           
-                        )     
+                        svgpath = strcat( 
+                            "\"svgpath\": \"" 
+                            figureToSvgPath( pad->figure xPos yPos pin->rotation )                            
+                            "\""                                           
+                        )    
                     ) 
                 ) 
                 ( 
@@ -967,14 +991,11 @@ procedure( addPad( pin )
                     shape = "\"custom\""
     
                     when( pad->figure                     
-                        poly = addPoly( pad->figure xPos yPos pin->rotation )
-                        properties = strcat( 
-                            "\"polygons\": [\n"
-                            "\t[\n" 
-                            addIndent( poly 2 ) "\n"
-                            "\t]\n"
-                            "]"                                           
-                        )     
+                        svgpath = strcat( 
+                            "\"svgpath\": \"" 
+                            figureToSvgPath( pad->figure xPos yPos pin->rotation )                            
+                            "\""                                           
+                        )    
                     )             
                 ) 
                 ( 
@@ -982,14 +1003,11 @@ procedure( addPad( pin )
                     shape = "\"custom\""
     
                     when( pad->figure                     
-                        poly = addPoly( pad->figure xPos yPos pin->rotation )
-                        properties = strcat( 
-                            "\"polygons\": [\n"
-                            "\t[\n" 
-                            addIndent( poly 2 ) "\n"
-                            "\t]\n"
-                            "]"                                           
-                        )     
+                        svgpath = strcat( 
+                            "\"svgpath\": \"" 
+                            figureToSvgPath( pad->figure xPos yPos pin->rotation )                            
+                            "\""                                           
+                        )    
                     )
                 )
                 (
@@ -997,14 +1015,11 @@ procedure( addPad( pin )
                     shape = "\"custom\""
     
                     when( pad->figure                     
-                        poly = addPoly( pad->figure xPos yPos pin->rotation )
-                        properties = strcat( 
-                            "\"polygons\": [\n"
-                            "\t[\n" 
-                            addIndent( poly 2 ) "\n"
-                            "\t]\n"
-                            "]"                                           
-                        )     
+                        svgpath = strcat( 
+                            "\"svgpath\": \"" 
+                            figureToSvgPath( pad->figure xPos yPos pin->rotation )                            
+                            "\""                                           
+                        )    
                     )
                 )
                 (
@@ -1012,14 +1027,11 @@ procedure( addPad( pin )
                     shape = "\"custom\""
     
                     when( pad->figure                     
-                        poly = addPoly( pad->figure xPos yPos pin->rotation )
-                        properties = strcat( 
-                            "\"polygons\": [\n"
-                            "\t[\n" 
-                            addIndent( poly 2 ) "\n"
-                            "\t]\n"
-                            "]"                                           
-                        )     
+                        svgpath = strcat( 
+                            "\"svgpath\": \"" 
+                            figureToSvgPath( pad->figure xPos yPos pin->rotation )                            
+                            "\""                                           
+                        )    
                     )
                 ) 
                 (
@@ -1035,15 +1047,12 @@ procedure( addPad( pin )
                     "ROUNDED_RECTANGLE"
                     shape = "\"custom\""
     
-                    when( pad->figure                     
-                        poly = addPoly( pad->figure xPos yPos pin->rotation )
-                        properties = strcat( 
-                            "\"polygons\": [\n"
-                            "\t[\n" 
-                            addIndent( poly 2 ) "\n"
-                            "\t]\n"
-                            "]"                                           
-                        )     
+                    when( pad->figure   
+                        svgpath = strcat( 
+                            "\"svgpath\": \"" 
+                            figureToSvgPath( pad->figure xPos yPos pin->rotation )                            
+                            "\""                                           
+                        ) 
                     )
                 )
                 (
@@ -1051,14 +1060,11 @@ procedure( addPad( pin )
                     shape = "\"custom\""
     
                     when( pad->figure                     
-                        poly = addPoly( pad->figure xPos yPos pin->rotation )
-                        properties = strcat( 
-                            "\"polygons\": [\n"
-                            "\t[\n" 
-                            addIndent( poly 2 ) "\n"
-                            "\t]\n"
-                            "]"                                           
-                        )     
+                        svgpath = strcat( 
+                            "\"svgpath\": \"" 
+                            figureToSvgPath( pad->figure xPos yPos pin->rotation )                            
+                            "\""                                           
+                        )    
                     )
                 )
                 (
@@ -1066,14 +1072,11 @@ procedure( addPad( pin )
                     shape = "\"custom\""
     
                     when( pad->figure                     
-                        poly = addPoly( pad->figure xPos yPos pin->rotation )
-                        properties = strcat( 
-                            "\"polygons\": [\n"
-                            "\t[\n" 
-                            addIndent( poly 2 ) "\n"
-                            "\t]\n"
-                            "]"                                           
-                        )     
+                        svgpath = strcat( 
+                            "\"svgpath\": \"" 
+                            figureToSvgPath( pad->figure xPos yPos pin->rotation )                            
+                            "\""                                           
+                        )    
                     )
                 ) 
                 (
@@ -1107,9 +1110,9 @@ procedure( addPad( pin )
                 "\"type\": " type
             )
 
-            when( boundp( 'properties )
+            when( svgpath
                 pad = strcat( pad ",\n"
-                    properties
+                    svgpath
                 )
             )
 
