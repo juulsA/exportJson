@@ -1430,7 +1430,7 @@ procedure( addFootprint( symbol )
     )        
 )
 
-procedure( addSymbols( @optional ( variantSymbolList 'unbound ) ( excludeTexts nil ) )
+procedure( addSymbols( @optional ( variantSymbolList 'unbound ) ( excludeDNP nil ) )
     let( (  ( silkscreenTop 'unbound ) 
             ( silkscreenBottom 'unbound ) 
             ( fabricationTop 'unbound ) 
@@ -1442,7 +1442,7 @@ procedure( addSymbols( @optional ( variantSymbolList 'unbound ) ( excludeTexts n
             ( fields 'unbound ) 
             ( footprints 'unbound ) 
             ( nets 'unbound )
-            dsn symbols footprint excludeText id sym value package field children segments element silkscreen fabrication drawings syms ) 
+            dsn symbols footprint excludeSymbol id sym value package field children segments element silkscreen fabrication drawings syms ) 
 
         ; get design
         dsn = axlDBGetDesign()
@@ -1460,14 +1460,14 @@ procedure( addSymbols( @optional ( variantSymbolList 'unbound ) ( excludeTexts n
                 footprint = addFootprint( symbol )
 
                 ; check if symbol is in variantS
-                if( boundp( 'variantSymbolList ) && excludeTexts then
+                if( boundp( 'variantSymbolList ) && excludeDNP then
                     if( member( symbol variantSymbolList) then
-                        excludeText = nil
+                        excludeSymbol = nil
                     else 
-                        excludeText = t
+                        excludeSymbol = t
                     )       
                 else
-                    excludeText = nil                    
+                    excludeSymbol = nil                    
                 )
 
                 ; append to field list            
@@ -1540,202 +1540,204 @@ procedure( addSymbols( @optional ( variantSymbolList 'unbound ) ( excludeTexts n
 
             ; loop through children of symbols
             foreach( child children
-                case( child->layer 
-                    (
-                        "PACKAGE GEOMETRY/SILKSCREEN_TOP"  
-                        if( ( child->objType == "path" ) || ( child->objType == "shape" ) then                      
-                            segments = child->segments
+                unless( excludeSymbol
+                    case( child->layer 
+                        (
+                            "PACKAGE GEOMETRY/SILKSCREEN_TOP"  
+                            if( ( child->objType == "path" ) || ( child->objType == "shape" ) then                      
+                                segments = child->segments
 
-                            ; loop though segments of each child
-                            foreach( segment segments
-                                element = parseSegment( segment )                   
+                                ; loop though segments of each child
+                                foreach( segment segments
+                                    element = parseSegment( segment )                   
+                                    if( boundp( 'silkscreenTop ) then
+                                        tconc( silkscreenTop element )
+                                    else
+                                        silkscreenTop = tconc( nil element )
+                                    )                  
+                                )
+                            else
+                                when( child->objType == "text" 
+                                    element = addText( child )
+                                    if( boundp( 'silkscreenTop ) then
+                                        tconc( silkscreenTop element )
+                                    else
+                                        silkscreenTop = tconc( nil element )
+                                    )                                 
+                                )                        
+                            ) 
+                        )
+                        (
+                            "PACKAGE GEOMETRY/SILKSCREEN_BOTTOM"
+                            if( ( child->objType == "path" ) || ( child->objType == "shape" ) then
+                                segments = child->segments
+
+                                ; loop though segments of each child
+                                foreach( segment segments
+                                    element = parseSegment( segment )                   
+                                    if( boundp( 'silkscreenBottom ) then
+                                        tconc( silkscreenBottom element )
+                                    else
+                                        silkscreenBottom = tconc( nil element )
+                                    )                  
+                                )
+                            else
+                                when( child->objType == "text" 
+                                    element = addText( child )  
+                                    if( boundp( 'silkscreenBottom ) then
+                                        tconc( silkscreenBottom element )
+                                    else
+                                        silkscreenBottom = tconc( nil element )
+                                    )                                 
+                                )                        
+                            ) 
+                        )
+                        (
+                            "REF DES/SILKSCREEN_TOP"
+                            when( child->objType == "text"    
+                                element = addText( child "refdes" )                   
                                 if( boundp( 'silkscreenTop ) then
                                     tconc( silkscreenTop element )
                                 else
                                     silkscreenTop = tconc( nil element )
-                                )                  
+                                )                 
                             )
-                        else
-                            when( child->objType == "text" && not( excludeText )
-                                element = addText( child )
+                        )      
+                        (
+                            "REF DES/SILKSCREEN_BOTTOM"
+                            when( child->objType == "text"    
+                                element = addText( child "refdes" )                   
+                                if( boundp( 'silkscreenBottom ) then
+                                    tconc( silkscreenBottom element )
+                                else
+                                    silkscreenBottom = tconc( nil element )
+                                )                 
+                            )
+                        )  
+                        (
+                            "COMPONENT VALUE/SILKSCREEN_TOP"
+                            when( child->objType == "text"    
+                                element = addText( child "value" )                   
                                 if( boundp( 'silkscreenTop ) then
                                     tconc( silkscreenTop element )
                                 else
                                     silkscreenTop = tconc( nil element )
-                                )                                 
-                            )                        
-                        ) 
-                    )
-                    (
-                        "PACKAGE GEOMETRY/SILKSCREEN_BOTTOM"
-                        if( ( child->objType == "path" ) || ( child->objType == "shape" ) then
-                            segments = child->segments
-
-                            ; loop though segments of each child
-                            foreach( segment segments
-                                element = parseSegment( segment )                   
+                                )                 
+                            )
+                        )      
+                        (
+                            "COMPONENT VALUE/SILKSCREEN_BOTTOM"
+                            when( child->objType == "text"    
+                                element = addText( child "value" )                   
                                 if( boundp( 'silkscreenBottom ) then
                                     tconc( silkscreenBottom element )
                                 else
                                     silkscreenBottom = tconc( nil element )
-                                )                  
+                                )                 
                             )
-                        else
-                            when( child->objType == "text" && not( excludeText )
-                                element = addText( child )  
-                                if( boundp( 'silkscreenBottom ) then
-                                    tconc( silkscreenBottom element )
-                                else
-                                    silkscreenBottom = tconc( nil element )
-                                )                                 
-                            )                        
-                        ) 
-                    )
-                    (
-                        "REF DES/SILKSCREEN_TOP"
-                        when( child->objType == "text" && not( excludeText )   
-                            element = addText( child "refdes" )                   
-                            if( boundp( 'silkscreenTop ) then
-                                tconc( silkscreenTop element )
-                            else
-                                silkscreenTop = tconc( nil element )
-                            )                 
-                        )
-                    )      
-                    (
-                        "REF DES/SILKSCREEN_BOTTOM"
-                        when( child->objType == "text" && not( excludeText )   
-                            element = addText( child "refdes" )                   
-                            if( boundp( 'silkscreenBottom ) then
-                                tconc( silkscreenBottom element )
-                            else
-                                silkscreenBottom = tconc( nil element )
-                            )                 
-                        )
-                    )  
-                    (
-                        "COMPONENT VALUE/SILKSCREEN_TOP"
-                        when( child->objType == "text" && not( excludeText )   
-                            element = addText( child "value" )                   
-                            if( boundp( 'silkscreenTop ) then
-                                tconc( silkscreenTop element )
-                            else
-                                silkscreenTop = tconc( nil element )
-                            )                 
-                        )
-                    )      
-                    (
-                        "COMPONENT VALUE/SILKSCREEN_BOTTOM"
-                        when( child->objType == "text" && not( excludeText )   
-                            element = addText( child "value" )                   
-                            if( boundp( 'silkscreenBottom ) then
-                                tconc( silkscreenBottom element )
-                            else
-                                silkscreenBottom = tconc( nil element )
-                            )                 
-                        )
-                    )   
-                    (
-                        "PACKAGE GEOMETRY/ASSEMBLY_TOP"
-                        if( ( child->objType == "path" ) || ( child->objType == "shape" ) then
-                            segments = child->segments
+                        )   
+                        (
+                            "PACKAGE GEOMETRY/ASSEMBLY_TOP"
+                            if( ( child->objType == "path" ) || ( child->objType == "shape" ) then
+                                segments = child->segments
 
-                            ; loop though segments of each child
-                            foreach( segment segments
-                                element = parseSegment( segment )                   
+                                ; loop though segments of each child
+                                foreach( segment segments
+                                    element = parseSegment( segment )                   
+                                    if( boundp( 'fabricationTop ) then
+                                        tconc( fabricationTop element )
+                                    else
+                                        fabricationTop = tconc( nil element )
+                                    )                  
+                                )    
+                            else
+                                when( child->objType == "text" 
+                                    element = addText( child )  
+                                    if( boundp( 'fabricationTop ) then
+                                        tconc( fabricationTop element )
+                                    else
+                                        fabricationTop = tconc( nil element )
+                                    )                                 
+                                )                        
+                            )                                            
+                        )
+                        (
+                            "PACKAGE GEOMETRY/ASSEMBLY_BOTTOM"                        
+                            if( ( child->objType == "path" ) || ( child->objType == "shape" ) then
+                                segments = child->segments
+
+                                ; loop though segments of each child
+                                foreach( segment segments
+                                    element = parseSegment( segment )                   
+                                    if( boundp( 'fabricationBottom ) then
+                                        tconc( fabricationBottom element )
+                                    else
+                                        fabricationBottom = tconc( nil element )
+                                    )                  
+                                )
+                            else
+                                when( child->objType == "text" 
+                                    element = addText( child ) 
+                                    if( boundp( 'fabricationBottom ) then
+                                        tconc( fabricationBottom element )
+                                    else
+                                        fabricationBottom = tconc( nil element )
+                                    )                                 
+                                )                        
+                            ) 
+                        )        
+                        (
+                            "REF DES/ASSEMBLY_TOP"
+                            when( child->objType == "text"    
+                                element = addText( child "refdes" )                   
                                 if( boundp( 'fabricationTop ) then
                                     tconc( fabricationTop element )
                                 else
                                     fabricationTop = tconc( nil element )
-                                )                  
-                            )    
-                        else
-                            when( child->objType == "text" && not( excludeText )
-                                element = addText( child )  
+                                )                 
+                            )
+                        )      
+                        (
+                            "REF DES/ASSEMBLY_BOTTOM"
+                            when( child->objType == "text"    
+                                element = addText( child "refdes" )                   
+                                if( boundp( 'fabricationBottom ) then
+                                    tconc( fabricationBottom element )
+                                else
+                                    fabricationBottom = tconc( nil element )
+                                )                 
+                            )
+                        )    
+                        (
+                            "COMPONENT VALUE/ASSEMBLY_TOP"
+                            when( child->objType == "text"    
+                                element = addText( child "value" )  
                                 if( boundp( 'fabricationTop ) then
                                     tconc( fabricationTop element )
                                 else
                                     fabricationTop = tconc( nil element )
-                                )                                 
-                            )                        
-                        )                                            
-                    )
-                    (
-                        "PACKAGE GEOMETRY/ASSEMBLY_BOTTOM"                        
-                        if( ( child->objType == "path" ) || ( child->objType == "shape" ) then
-                            segments = child->segments
-
-                            ; loop though segments of each child
-                            foreach( segment segments
-                                element = parseSegment( segment )                   
-                                if( boundp( 'fabricationBottom ) then
-                                    tconc( fabricationBottom element )
-                                else
-                                    fabricationBottom = tconc( nil element )
-                                )                  
+                                )                 
                             )
-                        else
-                            when( child->objType == "text" && not( excludeText )
-                                element = addText( child ) 
+                        )      
+                        (
+                            "COMPONENT VALUE/ASSEMBLY_BOTTOM"
+                            when( child->objType == "text"    
+                                element = addText( child "value" )              
                                 if( boundp( 'fabricationBottom ) then
                                     tconc( fabricationBottom element )
                                 else
                                     fabricationBottom = tconc( nil element )
-                                )                                 
-                            )                        
-                        ) 
-                    )        
-                    (
-                        "REF DES/ASSEMBLY_TOP"
-                        when( child->objType == "text" && not( excludeText )   
-                            element = addText( child "refdes" )                   
-                            if( boundp( 'fabricationTop ) then
-                                tconc( fabricationTop element )
-                            else
-                                fabricationTop = tconc( nil element )
-                            )                 
+                                )                 
+                            )
+                        )   
+                        ; OTHER LAYERS, WHICH HAVE TO BE CONSIDERED, CAN BE ADDED HERE
+                        (
+                            t
+                            ; ignored
                         )
-                    )      
-                    (
-                        "REF DES/ASSEMBLY_BOTTOM"
-                        when( child->objType == "text" && not( excludeText )   
-                            element = addText( child "refdes" )                   
-                            if( boundp( 'fabricationBottom ) then
-                                tconc( fabricationBottom element )
-                            else
-                                fabricationBottom = tconc( nil element )
-                            )                 
-                        )
-                    )    
-                    (
-                        "COMPONENT VALUE/ASSEMBLY_TOP"
-                        when( child->objType == "text" && not( excludeText )   
-                            element = addText( child "value" )  
-                            if( boundp( 'fabricationTop ) then
-                                tconc( fabricationTop element )
-                            else
-                                fabricationTop = tconc( nil element )
-                            )                 
-                        )
-                    )      
-                    (
-                        "COMPONENT VALUE/ASSEMBLY_BOTTOM"
-                        when( child->objType == "text" && not( excludeText )   
-                            element = addText( child "value" )              
-                            if( boundp( 'fabricationBottom ) then
-                                tconc( fabricationBottom element )
-                            else
-                                fabricationBottom = tconc( nil element )
-                            )                 
-                        )
-                    )   
-                    ; OTHER LAYERS, WHICH HAVE TO BE CONSIDERED, CAN BE ADDED HERE
-                    (
-                        t
-                        ; ignored
                     )
-                )
-            )        
+                ) 
+            )       
         ) 
 
         ; TOP SILKSCREEN
@@ -2010,7 +2012,7 @@ procedure( addNets()
     )
 )
 
-procedure( writeJsonFile( @optional ( variant nil ) ( symbols 'unbound ) ( alternateParts 'unbound ) ( excludeTexts nil ) )
+procedure( writeJsonFile( @optional ( variant nil ) ( symbols 'unbound ) ( alternateParts 'unbound ) ( excludeDNP nil ) )
     let( ( outPort pcbData )
         workingDir = getWorkingDir()
         dsnName = axlCurrentDesign()
@@ -2047,7 +2049,7 @@ procedure( writeJsonFile( @optional ( variant nil ) ( symbols 'unbound ) ( alter
                                     buildString( list(
                                         addMetadata( dsnName )
                                         addBoardGeometry( list( '( 10.0 10.0 ) '( 10.0 10.0 ) ) )
-                                        addSymbols( symbols excludeTexts )            
+                                        addSymbols( symbols excludeDNP )            
                                         )             
                                         ",\n" 
                                     )              
@@ -2170,7 +2172,7 @@ procedure( getVariantInfo()
     )    
 )
 
-procedure( exportJson( @optional ( excludeTexts nil ) )
+procedure( exportJson( @optional ( excludeDNP nil ) )
     let( ( ( variantFile "Variants.lst" ) variantInformation variantSymbolList alternateParts symbols )
 
         if( isFile( variantFile ) then
@@ -2186,7 +2188,7 @@ procedure( exportJson( @optional ( excludeTexts nil ) )
                     ; build symbol list
                     symbols = mapcar( lambda( ( refdes ) axlDBFindByName( 'refdes refdes )->symbol ) variantSymbolList[key] )
 
-                    writeJsonFile( key symbols alternateParts excludeTexts )                
+                    writeJsonFile( key symbols alternateParts excludeDNP )                
                 )        
             else
                 error( "Tables could not be created ... " ) 
