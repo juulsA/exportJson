@@ -503,6 +503,68 @@ procedure( arcToSvgPath( isFirst xy startEnd isClockwise @optional ( radius nil 
     )
 )
 
+procedure( textToSvgPath( object @optional ( type t ) )
+    let( (  ( svgPath 'unbound )
+            textBlock thickness pathLists segments isFirst endPoint path text )        
+
+        ; get text parameters
+        textBlock = axlGetParam( strcat( "paramTextBlock:" object->textBlock ) )        
+        thickness = textBlock->photoWidth
+
+        case( type
+            (
+                "refdes"
+                type = ",\n\t\"ref\": 1\n"
+            )
+            (
+                "value"
+                type = ",\n\t\"val\": 1\n"
+            )
+            (
+                t
+                type = "\n"
+            )
+        )
+
+        ; get list if paths
+        pathLists = axlText2Lines( object )
+
+        foreach( pathList pathLists
+            ; iterate though paths
+            foreach( path pathList          
+                ; get path segments
+                segments = axlPathGetPathSegs( path )
+
+                foreach( segment segments
+                    isFirst = ( lindex( segments segment ) == 1 )
+
+                    endPoint = segment->_endPoint
+                    endPoint = list( xCoord( endPoint ) -yCoord( endPoint ) )
+                        
+                    ; vertice is a list: #1 element is the point, #2 is unimportant to us
+                    path = lineToSvgPath( isFirst list( endPoint )  )  
+                    
+                    if( boundp( 'svgPath ) then
+                        tconc( svgPath path )
+                    else
+                        svgPath = tconc( nil path )
+                    )
+                )               
+            )                   
+        )
+
+        svgPath = buildString( car( svgPath ) " " )
+
+        text = strcat(
+            "{"
+            "\t\"svgpath\": \"" svgPath "\",\n"            
+            "\t\"thickness\": " sprintf( nil "%f" thickness )
+            type
+            "}"
+        ) 
+    )
+)
+
 procedure( createSvgPath( segments )
     let( (  ( paths 'unbound ) 
             isFirst arcCenter xArcCenter yArcCenter 
@@ -570,7 +632,7 @@ procedure( createSvgPath( segments )
                 )
                 (
                     t
-                    print( "unknown type ... ")
+                    printf( "unknown type ... ")
                 )
                 
             )
@@ -1432,7 +1494,7 @@ procedure( addFootprint( symbol )
     )        
 )
 
-procedure( addSymbols( @optional ( variantSymbolList 'unbound ) ( excludeDNP nil ) )
+procedure( addSymbols( @optional ( variantSymbolList 'unbound ) ( textsAsSvgPaths t ) ( excludeDNP nil ) )
     let( (  ( silkscreenTop 'unbound ) 
             ( silkscreenBottom 'unbound ) 
             ( fabricationTop 'unbound ) 
@@ -1560,7 +1622,12 @@ procedure( addSymbols( @optional ( variantSymbolList 'unbound ) ( excludeDNP nil
                                 )
                             else
                                 when( child->objType == "text" 
-                                    element = addText( child )
+                                    if( textsAsSvgPaths then 
+                                        element = textToSvgPath( child )
+                                    else
+                                        element = addText( child )
+                                    )
+
                                     if( boundp( 'silkscreenTop ) then
                                         tconc( silkscreenTop element )
                                     else
@@ -1585,7 +1652,12 @@ procedure( addSymbols( @optional ( variantSymbolList 'unbound ) ( excludeDNP nil
                                 )
                             else
                                 when( child->objType == "text" 
-                                    element = addText( child )  
+                                    if( textsAsSvgPaths then 
+                                        element = textToSvgPath( child )
+                                    else
+                                        element = addText( child )
+                                    )  
+
                                     if( boundp( 'silkscreenBottom ) then
                                         tconc( silkscreenBottom element )
                                     else
@@ -1597,7 +1669,12 @@ procedure( addSymbols( @optional ( variantSymbolList 'unbound ) ( excludeDNP nil
                         (
                             "REF DES/SILKSCREEN_TOP"
                             when( child->objType == "text"    
-                                element = addText( child "refdes" )                   
+                                if( textsAsSvgPaths then
+                                    element = textToSvgPath( child "refdes" )
+                                else
+                                    element = addText( child "refdes" )   
+                                )
+                                                    
                                 if( boundp( 'silkscreenTop ) then
                                     tconc( silkscreenTop element )
                                 else
@@ -1608,7 +1685,12 @@ procedure( addSymbols( @optional ( variantSymbolList 'unbound ) ( excludeDNP nil
                         (
                             "REF DES/SILKSCREEN_BOTTOM"
                             when( child->objType == "text"    
-                                element = addText( child "refdes" )                   
+                                if( textsAsSvgPaths then
+                                    element = textToSvgPath( child "refdes" )
+                                else
+                                    element = addText( child "refdes" )   
+                                )
+                                                    
                                 if( boundp( 'silkscreenBottom ) then
                                     tconc( silkscreenBottom element )
                                 else
@@ -1619,7 +1701,12 @@ procedure( addSymbols( @optional ( variantSymbolList 'unbound ) ( excludeDNP nil
                         (
                             "COMPONENT VALUE/SILKSCREEN_TOP"
                             when( child->objType == "text"    
-                                element = addText( child "value" )                   
+                                if( textsAsSvgPaths then
+                                    element = textToSvgPath( child "value" )                                    
+                                else
+                                    element = addText( child "value" )
+                                )  
+
                                 if( boundp( 'silkscreenTop ) then
                                     tconc( silkscreenTop element )
                                 else
@@ -1630,7 +1717,12 @@ procedure( addSymbols( @optional ( variantSymbolList 'unbound ) ( excludeDNP nil
                         (
                             "COMPONENT VALUE/SILKSCREEN_BOTTOM"
                             when( child->objType == "text"    
-                                element = addText( child "value" )                   
+                                if( textsAsSvgPaths then
+                                    element = textToSvgPath( child "value" )                                    
+                                else
+                                    element = addText( child "value" )
+                                )     
+
                                 if( boundp( 'silkscreenBottom ) then
                                     tconc( silkscreenBottom element )
                                 else
@@ -1654,7 +1746,12 @@ procedure( addSymbols( @optional ( variantSymbolList 'unbound ) ( excludeDNP nil
                                 )    
                             else
                                 when( child->objType == "text" 
-                                    element = addText( child )  
+                                    if( textsAsSvgPaths then 
+                                        element = textToSvgPath( child )
+                                    else
+                                        element = addText( child )
+                                    )  
+
                                     if( boundp( 'fabricationTop ) then
                                         tconc( fabricationTop element )
                                     else
@@ -1679,7 +1776,12 @@ procedure( addSymbols( @optional ( variantSymbolList 'unbound ) ( excludeDNP nil
                                 )
                             else
                                 when( child->objType == "text" 
-                                    element = addText( child ) 
+                                    if( textsAsSvgPaths then 
+                                        element = textToSvgPath( child )
+                                    else
+                                        element = addText( child )
+                                    ) 
+
                                     if( boundp( 'fabricationBottom ) then
                                         tconc( fabricationBottom element )
                                     else
@@ -1691,7 +1793,12 @@ procedure( addSymbols( @optional ( variantSymbolList 'unbound ) ( excludeDNP nil
                         (
                             "REF DES/ASSEMBLY_TOP"
                             when( child->objType == "text"    
-                                element = addText( child "refdes" )                   
+                                if( textsAsSvgPaths then
+                                    element = textToSvgPath( child "refdes" )
+                                else
+                                    element = addText( child "refdes" )   
+                                )
+                                                 
                                 if( boundp( 'fabricationTop ) then
                                     tconc( fabricationTop element )
                                 else
@@ -1702,7 +1809,12 @@ procedure( addSymbols( @optional ( variantSymbolList 'unbound ) ( excludeDNP nil
                         (
                             "REF DES/ASSEMBLY_BOTTOM"
                             when( child->objType == "text"    
-                                element = addText( child "refdes" )                   
+                                if( textsAsSvgPaths then
+                                    element = textToSvgPath( child "refdes" )
+                                else
+                                    element = addText( child "refdes" )   
+                                )
+                                                    
                                 if( boundp( 'fabricationBottom ) then
                                     tconc( fabricationBottom element )
                                 else
@@ -1712,8 +1824,13 @@ procedure( addSymbols( @optional ( variantSymbolList 'unbound ) ( excludeDNP nil
                         )    
                         (
                             "COMPONENT VALUE/ASSEMBLY_TOP"
-                            when( child->objType == "text"    
-                                element = addText( child "value" )  
+                            when( child->objType == "text"  
+                                if( textsAsSvgPaths then
+                                    element = textToSvgPath( child "value" )                                    
+                                else
+                                    element = addText( child "value" )
+                                )
+                                  
                                 if( boundp( 'fabricationTop ) then
                                     tconc( fabricationTop element )
                                 else
@@ -1724,7 +1841,12 @@ procedure( addSymbols( @optional ( variantSymbolList 'unbound ) ( excludeDNP nil
                         (
                             "COMPONENT VALUE/ASSEMBLY_BOTTOM"
                             when( child->objType == "text"    
-                                element = addText( child "value" )              
+                                if( textsAsSvgPaths then
+                                    element = textToSvgPath( child "value" )                                    
+                                else
+                                    element = addText( child "value" )
+                                )  
+
                                 if( boundp( 'fabricationBottom ) then
                                     tconc( fabricationBottom element )
                                 else
@@ -1910,8 +2032,7 @@ procedure( addCopper()
                         )
                         (
                             "tee"
-                            print( "Tee was ignored ... \n" )
-
+                            ; a tee is only a point, there is nothing to draw
                         )
                         (
                             "via"                                 
@@ -1931,7 +2052,7 @@ procedure( addCopper()
                         )
                         (
                             t
-                            printf( "%s was not considered ... " child->objType )
+                            printf( "%s was not considered ... \n" child->objType )
                         )                        
                     )
                 )                              
@@ -2014,7 +2135,7 @@ procedure( addNets()
     )
 )
 
-procedure( writeJsonFile( @optional ( variant nil ) ( symbols 'unbound ) ( alternateParts 'unbound ) ( excludeDNP nil ) )
+procedure( writeJsonFile( @key ( variant nil ) ( symbols 'unbound ) ( alternateParts 'unbound ) ( textsAsSvgPaths t ) ( excludeDNP nil ) )
     let( ( outPort pcbData )
         workingDir = getWorkingDir()
         dsnName = axlCurrentDesign()
@@ -2051,7 +2172,7 @@ procedure( writeJsonFile( @optional ( variant nil ) ( symbols 'unbound ) ( alter
                                     buildString( list(
                                         addMetadata( dsnName )
                                         addBoardGeometry( list( '( 10.0 10.0 ) '( 10.0 10.0 ) ) )
-                                        addSymbols( symbols excludeDNP )            
+                                        addSymbols( symbols textsAsSvgPaths excludeDNP )            
                                         )             
                                         ",\n" 
                                     )              
@@ -2174,8 +2295,17 @@ procedure( getVariantInfo()
     )    
 )
 
-procedure( exportJson( @optional ( excludeDNP nil ) )
+procedure( exportJson( @key ( textsAsSvgPaths t ) ( excludeDNP nil ) )
     let( ( ( variantFile "Variants.lst" ) variantInformation variantSymbolList alternateParts symbols )
+        
+        ; information
+        unless( textsAsSvgPaths
+            warn( "External font_data is used, text may look different ... " )
+        )
+
+        when( excludeDNP
+            warn( "Outlines and texts of non-placed components are ignored ... \n" )
+        )
 
         if( isFile( variantFile ) then
             variantInformation = getVariantInfo()
@@ -2189,8 +2319,7 @@ procedure( exportJson( @optional ( excludeDNP nil ) )
 
                     ; build symbol list
                     symbols = mapcar( lambda( ( refdes ) axlDBFindByName( 'refdes refdes )->symbol ) variantSymbolList[key] )
-
-                    writeJsonFile( key symbols alternateParts excludeDNP )                
+                    writeJsonFile( ?variant key ?symbols symbols ?alternateParts alternateParts ?textsAsSvgPaths textsAsSvgPaths ?excludeDNP excludeDNP )                
                 )        
             else
                 error( "Tables could not be created ... " ) 
@@ -2198,7 +2327,7 @@ procedure( exportJson( @optional ( excludeDNP nil ) )
         else
             ; if no variant is available
             warn( "No variant.lst found, exporting entire design ... ")
-            writeJsonFile()        
+            writeJsonFile( ?textsAsSvgPaths textsAsSvgPaths )        
         )  
     )
 )

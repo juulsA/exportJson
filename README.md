@@ -14,11 +14,14 @@ A directory named `json` is created in your project folder containing the `.json
 
 The script uses the "project name" ( optional:  + "_" + "variant" ) as the file name and asks for the optional arguments `revision` and `company` but you can pass the revision and company name as arguments to the [`addMetadata`](https://github.com/juulsA/exportJson/blob/00f01b0105800a2920b9ec6f3041799332a9ff84/exportJson.il#L3) function by changing this [line](https://github.com/juulsA/exportJson/blob/00f01b0105800a2920b9ec6f3041799332a9ff84/exportJson.il#L2048) to your needs. The input prompt is then suppressed.
 
+## Texts
+Texts are represented as `svgpaths` by default. If you want to use custom `font_data` or the newstroke font you can pass the optional argument `?textsAsSvgPaths nil` to the export function( `exportJson( ?textsAsSvgPaths nil )` ) and the texts are described as defined in [DATAFORMAT.md](https://github.com/openscopeproject/InteractiveHtmlBom/blob/master/DATAFORMAT.md#text).
+
 ## Variants and alternate parts
 If no `variants.lst` is present in the `allegro` directory, a warning is displayed in the command prompt and all components are considered in the json file; otherwise a json file for each variant is created and the `DNP` field in the `extra_fields` is set to mark unplaced components.
 When an alternate part are used, the value of the part is changed to the value of the alternate part.
 
-By passing the optional argument `excludeDNP = t` to the export function ( `exportJson( t )` ) all fabrication and silkscreen data of an unplaced component are ignored.
+By passing the optional argument `?excludeDNP t` to the export function ( `exportJson( ?excludeDNP t )` ) all fabrication and silkscreen data of an unplaced component are ignored.
 
 ## Custom properties
 Any custom properties assigned to a component are added to the `extra_fields`.
@@ -38,5 +41,5 @@ As an example I have done the json export and the ibom creation for the [AD-FMCO
 ## Open tasks
 - [x] changed `excludeTexts` to `excludeDNP` in the `exportJson` function to suppress all fabrication and silkscreen data for `DNP` components ( inspired by [qu1ck](https://github.com/openscopeproject/InteractiveHtmlBom/issues/336#issuecomment-1323722800) )
 - [x] generate pads as `svgpaths` instead of `polygons`
-- [ ] generate text as svgpaths ( providing `font_data` is not possible )
+- [x] generate text as svgpaths ( providing `font_data` is not possible )
 - [ ] handle "donut" pads
