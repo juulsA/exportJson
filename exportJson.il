@@ -887,7 +887,7 @@ procedure( addPad( pin )
             ( pads 'unbound ) 
             xy xPos yPos pos net angle pinOnes pinNumber 
             type padstack startEnd layers pad 
-            drillShape drillSize bBox xSize ySize size poly svgpath shape )   
+            drillShape drillSize bBox xSize ySize size shape svgpath innerDiameter outerDiameter startInner startOuter )   
 
         ; get position
         xy = pin->xy
@@ -979,9 +979,9 @@ procedure( addPad( pin )
                 ) 
 
                 drill = strcat(
-                    "\t\"drillshape\": \"" drillShape "\",\n"
-                    "\t\"drillsize\": " drillSize ",\n"
-                    "\t\"offset\": [" sprintf( nil "%f" car( padstack->drillOffset ) ) ", " sprintf( nil "%f" cadr( padstack->drillOffset ) ) "]"
+                    "\"drillshape\": \"" drillShape "\",\n"
+                    "\"drillsize\": " drillSize ",\n"
+                    "\"offset\": [" sprintf( nil "%f" car( padstack->drillOffset ) ) ", " sprintf( nil "%f" cadr( padstack->drillOffset ) ) "]"
                 )            
             else
                 type = "\"smd\""                
@@ -1022,6 +1022,7 @@ procedure( addPad( pin )
                 (
                     "CIRCLE"
                     shape = "\"circle\""
+                    svgpath = nil
                 )
                 (   
                     "OCTAGON"
@@ -1102,7 +1103,21 @@ procedure( addPad( pin )
                 ) 
                 ( 
                     "DONUT"
-                    warn( "Donut pad is not supported ..." )  
+                    shape = "\"custom\""
+                    innerDiameter = pad->inside
+                    outerDiameter = abs( xCoord( cadr( bBox ) ) - xCoord( car( bBox ) ) )
+
+                    ; calculate diameters
+                    startOuter = list( ( outerDiameter / 2 ) 0.0 )          
+                    startInner = list( ( innerDiameter / 2 ) 0.0 )
+                                                            
+                    svgpath = strcat( 
+                        "\"svgpath\": \""                 
+                        arcToSvgPath( t list( 0.0 0.0 ) list( startOuter startOuter ) t outerDiameter/2 t ) " "
+                        arcToSvgPath( t list( 0.0 0.0 ) list( startInner startInner ) nil innerDiameter/2 t )
+                        "\""                                           
+                    )    
+                     
                 ) 
                 ( 
                     "ROUNDED_RECTANGLE"
@@ -1498,12 +1513,7 @@ procedure( addSymbols( @optional ( variantSymbolList 'unbound ) ( textsAsSvgPath
     let( (  ( silkscreenTop 'unbound ) 
             ( silkscreenBottom 'unbound ) 
             ( fabricationTop 'unbound ) 
-            ( fabricationBottom 'unbound ) 
-            ( symbolsTop 'unbound ) 
-            ( symbolsBottom 'unbound ) 
-            ( symbolsBoth 'unbound ) 
-            ( symbolsSkipped 'unbound ) 
-            ( fields 'unbound ) 
+            ( fabricationBottom 'unbound )             
             ( footprints 'unbound ) 
             ( nets 'unbound )
             dsn symbols footprint excludeSymbol id sym value package field children segments element silkscreen fabrication drawings syms ) 
@@ -1541,327 +1551,269 @@ procedure( addSymbols( @optional ( variantSymbolList 'unbound ) ( textsAsSvgPath
                     footprints = tconc( nil footprint )
                 )         
 
-                ; footprint id
-                id = sub1( length( car( footprints ) ) )
-                ; create string, double bracing is for components of equal value    
-                ; refdes, id ( corresponds to location in footprint list )        
-                sym = strcat( "[[\"" symbol->refdes "\", " sprintf( nil "%d" id )  "]]" )
+                ; loop through children of symbols
+                children = symbol->children
 
-                value = cadr( assoc( 'VALUE, axlDBGetProperties( symbol->component->compdef ) ) )
-                package = symbol->component->package
+                foreach( child children
+                    unless( excludeSymbol
+                        case( child->layer 
+                            (
+                                "PACKAGE GEOMETRY/SILKSCREEN_TOP"  
+                                if( ( child->objType == "path" ) || ( child->objType == "shape" ) then                      
+                                    segments = child->segments
 
-                unless( value 
-                    value = "undefined"
-                )
-
-                field = strcat( 
-                    "\"" 
-                    sprintf( nil "%d" id ) 
-                    "\": [\"" 
-                    value 
-                    "\", \"" 
-                    package 
-                    "\"]" 
-                )
-
-                ; append to field list            
-                if( boundp( 'fields ) then
-                    tconc( fields field )
-                else
-                    fields = tconc( nil field )
-                ) 
-
-                if( symbol->layer == "TOP" then             
-                    if( boundp( 'symbolsTop ) then
-                        tconc( symbolsTop sym )
-                    else
-                        symbolsTop = tconc( nil sym )
-
-                    ) 
-                    if( boundp( 'symbolsBoth ) then
-                        tconc( symbolsBoth sym )
-                    else
-                        symbolsBoth = tconc( nil sym )
-
-                    ) 
-                ; if on BOTTOM
-                else
-                    if( boundp( 'symbolsBottom ) then
-                        tconc( symbolsBottom sym )
-                    else
-                        symbolsBottom = tconc( nil sym )
-                    )   
-                    if( boundp( 'symbolsBoth ) then
-                        tconc( symbolsBoth sym )
-                    else
-                        symbolsBoth = tconc( nil sym )
-
-                    )           
-                )
-            )
-
-            children = symbol->children
-
-            ; loop through children of symbols
-            foreach( child children
-                unless( excludeSymbol
-                    case( child->layer 
-                        (
-                            "PACKAGE GEOMETRY/SILKSCREEN_TOP"  
-                            if( ( child->objType == "path" ) || ( child->objType == "shape" ) then                      
-                                segments = child->segments
-
-                                ; loop though segments of each child
-                                foreach( segment segments
-                                    element = parseSegment( segment )                   
-                                    if( boundp( 'silkscreenTop ) then
-                                        tconc( silkscreenTop element )
-                                    else
-                                        silkscreenTop = tconc( nil element )
-                                    )                  
-                                )
-                            else
-                                when( child->objType == "text" 
-                                    if( textsAsSvgPaths then 
-                                        element = textToSvgPath( child )
-                                    else
-                                        element = addText( child )
+                                    ; loop though segments of each child
+                                    foreach( segment segments
+                                        element = parseSegment( segment )                   
+                                        if( boundp( 'silkscreenTop ) then
+                                            tconc( silkscreenTop element )
+                                        else
+                                            silkscreenTop = tconc( nil element )
+                                        )                  
                                     )
+                                else
+                                    when( child->objType == "text" 
+                                        if( textsAsSvgPaths then 
+                                            element = textToSvgPath( child )
+                                        else
+                                            element = addText( child )
+                                        )
+
+                                        if( boundp( 'silkscreenTop ) then
+                                            tconc( silkscreenTop element )
+                                        else
+                                            silkscreenTop = tconc( nil element )
+                                        )                                 
+                                    )                        
+                                ) 
+                            )
+                            (
+                                "PACKAGE GEOMETRY/SILKSCREEN_BOTTOM"
+                                if( ( child->objType == "path" ) || ( child->objType == "shape" ) then
+                                    segments = child->segments
+
+                                    ; loop though segments of each child
+                                    foreach( segment segments
+                                        element = parseSegment( segment )                   
+                                        if( boundp( 'silkscreenBottom ) then
+                                            tconc( silkscreenBottom element )
+                                        else
+                                            silkscreenBottom = tconc( nil element )
+                                        )                  
+                                    )
+                                else
+                                    when( child->objType == "text" 
+                                        if( textsAsSvgPaths then 
+                                            element = textToSvgPath( child )
+                                        else
+                                            element = addText( child )
+                                        )  
+
+                                        if( boundp( 'silkscreenBottom ) then
+                                            tconc( silkscreenBottom element )
+                                        else
+                                            silkscreenBottom = tconc( nil element )
+                                        )                                 
+                                    )                        
+                                ) 
+                            )
+                            (
+                                "REF DES/SILKSCREEN_TOP"
+                                when( child->objType == "text"    
+                                    if( textsAsSvgPaths then
+                                        element = textToSvgPath( child "refdes" )
+                                    else
+                                        element = addText( child "refdes" )   
+                                    )
+                                                        
+                                    if( boundp( 'silkscreenTop ) then
+                                        tconc( silkscreenTop element )
+                                    else
+                                        silkscreenTop = tconc( nil element )
+                                    )                 
+                                )
+                            )      
+                            (
+                                "REF DES/SILKSCREEN_BOTTOM"
+                                when( child->objType == "text"    
+                                    if( textsAsSvgPaths then
+                                        element = textToSvgPath( child "refdes" )
+                                    else
+                                        element = addText( child "refdes" )   
+                                    )
+                                                        
+                                    if( boundp( 'silkscreenBottom ) then
+                                        tconc( silkscreenBottom element )
+                                    else
+                                        silkscreenBottom = tconc( nil element )
+                                    )                 
+                                )
+                            )  
+                            (
+                                "COMPONENT VALUE/SILKSCREEN_TOP"
+                                when( child->objType == "text"    
+                                    if( textsAsSvgPaths then
+                                        element = textToSvgPath( child "value" )                                    
+                                    else
+                                        element = addText( child "value" )
+                                    )  
 
                                     if( boundp( 'silkscreenTop ) then
                                         tconc( silkscreenTop element )
                                     else
                                         silkscreenTop = tconc( nil element )
-                                    )                                 
-                                )                        
-                            ) 
-                        )
-                        (
-                            "PACKAGE GEOMETRY/SILKSCREEN_BOTTOM"
-                            if( ( child->objType == "path" ) || ( child->objType == "shape" ) then
-                                segments = child->segments
-
-                                ; loop though segments of each child
-                                foreach( segment segments
-                                    element = parseSegment( segment )                   
-                                    if( boundp( 'silkscreenBottom ) then
-                                        tconc( silkscreenBottom element )
-                                    else
-                                        silkscreenBottom = tconc( nil element )
-                                    )                  
+                                    )                 
                                 )
-                            else
-                                when( child->objType == "text" 
-                                    if( textsAsSvgPaths then 
-                                        element = textToSvgPath( child )
+                            )      
+                            (
+                                "COMPONENT VALUE/SILKSCREEN_BOTTOM"
+                                when( child->objType == "text"    
+                                    if( textsAsSvgPaths then
+                                        element = textToSvgPath( child "value" )                                    
                                     else
-                                        element = addText( child )
-                                    )  
+                                        element = addText( child "value" )
+                                    )     
 
                                     if( boundp( 'silkscreenBottom ) then
                                         tconc( silkscreenBottom element )
                                     else
                                         silkscreenBottom = tconc( nil element )
-                                    )                                 
-                                )                        
-                            ) 
-                        )
-                        (
-                            "REF DES/SILKSCREEN_TOP"
-                            when( child->objType == "text"    
-                                if( textsAsSvgPaths then
-                                    element = textToSvgPath( child "refdes" )
-                                else
-                                    element = addText( child "refdes" )   
+                                    )                 
                                 )
+                            )   
+                            (
+                                "PACKAGE GEOMETRY/ASSEMBLY_TOP"
+                                if( ( child->objType == "path" ) || ( child->objType == "shape" ) then
+                                    segments = child->segments
+
+                                    ; loop though segments of each child
+                                    foreach( segment segments
+                                        element = parseSegment( segment )                   
+                                        if( boundp( 'fabricationTop ) then
+                                            tconc( fabricationTop element )
+                                        else
+                                            fabricationTop = tconc( nil element )
+                                        )                  
+                                    )    
+                                else
+                                    when( child->objType == "text" 
+                                        if( textsAsSvgPaths then 
+                                            element = textToSvgPath( child )
+                                        else
+                                            element = addText( child )
+                                        )  
+
+                                        if( boundp( 'fabricationTop ) then
+                                            tconc( fabricationTop element )
+                                        else
+                                            fabricationTop = tconc( nil element )
+                                        )                                 
+                                    )                        
+                                )                                            
+                            )
+                            (
+                                "PACKAGE GEOMETRY/ASSEMBLY_BOTTOM"                        
+                                if( ( child->objType == "path" ) || ( child->objType == "shape" ) then
+                                    segments = child->segments
+
+                                    ; loop though segments of each child
+                                    foreach( segment segments
+                                        element = parseSegment( segment )                   
+                                        if( boundp( 'fabricationBottom ) then
+                                            tconc( fabricationBottom element )
+                                        else
+                                            fabricationBottom = tconc( nil element )
+                                        )                  
+                                    )
+                                else
+                                    when( child->objType == "text" 
+                                        if( textsAsSvgPaths then 
+                                            element = textToSvgPath( child )
+                                        else
+                                            element = addText( child )
+                                        ) 
+
+                                        if( boundp( 'fabricationBottom ) then
+                                            tconc( fabricationBottom element )
+                                        else
+                                            fabricationBottom = tconc( nil element )
+                                        )                                 
+                                    )                        
+                                ) 
+                            )        
+                            (
+                                "REF DES/ASSEMBLY_TOP"
+                                when( child->objType == "text"    
+                                    if( textsAsSvgPaths then
+                                        element = textToSvgPath( child "refdes" )
+                                    else
+                                        element = addText( child "refdes" )   
+                                    )
                                                     
-                                if( boundp( 'silkscreenTop ) then
-                                    tconc( silkscreenTop element )
-                                else
-                                    silkscreenTop = tconc( nil element )
-                                )                 
-                            )
-                        )      
-                        (
-                            "REF DES/SILKSCREEN_BOTTOM"
-                            when( child->objType == "text"    
-                                if( textsAsSvgPaths then
-                                    element = textToSvgPath( child "refdes" )
-                                else
-                                    element = addText( child "refdes" )   
-                                )
-                                                    
-                                if( boundp( 'silkscreenBottom ) then
-                                    tconc( silkscreenBottom element )
-                                else
-                                    silkscreenBottom = tconc( nil element )
-                                )                 
-                            )
-                        )  
-                        (
-                            "COMPONENT VALUE/SILKSCREEN_TOP"
-                            when( child->objType == "text"    
-                                if( textsAsSvgPaths then
-                                    element = textToSvgPath( child "value" )                                    
-                                else
-                                    element = addText( child "value" )
-                                )  
-
-                                if( boundp( 'silkscreenTop ) then
-                                    tconc( silkscreenTop element )
-                                else
-                                    silkscreenTop = tconc( nil element )
-                                )                 
-                            )
-                        )      
-                        (
-                            "COMPONENT VALUE/SILKSCREEN_BOTTOM"
-                            when( child->objType == "text"    
-                                if( textsAsSvgPaths then
-                                    element = textToSvgPath( child "value" )                                    
-                                else
-                                    element = addText( child "value" )
-                                )     
-
-                                if( boundp( 'silkscreenBottom ) then
-                                    tconc( silkscreenBottom element )
-                                else
-                                    silkscreenBottom = tconc( nil element )
-                                )                 
-                            )
-                        )   
-                        (
-                            "PACKAGE GEOMETRY/ASSEMBLY_TOP"
-                            if( ( child->objType == "path" ) || ( child->objType == "shape" ) then
-                                segments = child->segments
-
-                                ; loop though segments of each child
-                                foreach( segment segments
-                                    element = parseSegment( segment )                   
                                     if( boundp( 'fabricationTop ) then
                                         tconc( fabricationTop element )
                                     else
                                         fabricationTop = tconc( nil element )
-                                    )                  
-                                )    
-                            else
-                                when( child->objType == "text" 
-                                    if( textsAsSvgPaths then 
-                                        element = textToSvgPath( child )
+                                    )                 
+                                )
+                            )      
+                            (
+                                "REF DES/ASSEMBLY_BOTTOM"
+                                when( child->objType == "text"    
+                                    if( textsAsSvgPaths then
+                                        element = textToSvgPath( child "refdes" )
                                     else
-                                        element = addText( child )
+                                        element = addText( child "refdes" )   
+                                    )
+                                                        
+                                    if( boundp( 'fabricationBottom ) then
+                                        tconc( fabricationBottom element )
+                                    else
+                                        fabricationBottom = tconc( nil element )
+                                    )                 
+                                )
+                            )    
+                            (
+                                "COMPONENT VALUE/ASSEMBLY_TOP"
+                                when( child->objType == "text"  
+                                    if( textsAsSvgPaths then
+                                        element = textToSvgPath( child "value" )                                    
+                                    else
+                                        element = addText( child "value" )
+                                    )
+                                    
+                                    if( boundp( 'fabricationTop ) then
+                                        tconc( fabricationTop element )
+                                    else
+                                        fabricationTop = tconc( nil element )
+                                    )                 
+                                )
+                            )      
+                            (
+                                "COMPONENT VALUE/ASSEMBLY_BOTTOM"
+                                when( child->objType == "text"    
+                                    if( textsAsSvgPaths then
+                                        element = textToSvgPath( child "value" )                                    
+                                    else
+                                        element = addText( child "value" )
                                     )  
 
-                                    if( boundp( 'fabricationTop ) then
-                                        tconc( fabricationTop element )
-                                    else
-                                        fabricationTop = tconc( nil element )
-                                    )                                 
-                                )                        
-                            )                                            
-                        )
-                        (
-                            "PACKAGE GEOMETRY/ASSEMBLY_BOTTOM"                        
-                            if( ( child->objType == "path" ) || ( child->objType == "shape" ) then
-                                segments = child->segments
-
-                                ; loop though segments of each child
-                                foreach( segment segments
-                                    element = parseSegment( segment )                   
                                     if( boundp( 'fabricationBottom ) then
                                         tconc( fabricationBottom element )
                                     else
                                         fabricationBottom = tconc( nil element )
-                                    )                  
+                                    )                 
                                 )
-                            else
-                                when( child->objType == "text" 
-                                    if( textsAsSvgPaths then 
-                                        element = textToSvgPath( child )
-                                    else
-                                        element = addText( child )
-                                    ) 
-
-                                    if( boundp( 'fabricationBottom ) then
-                                        tconc( fabricationBottom element )
-                                    else
-                                        fabricationBottom = tconc( nil element )
-                                    )                                 
-                                )                        
-                            ) 
-                        )        
-                        (
-                            "REF DES/ASSEMBLY_TOP"
-                            when( child->objType == "text"    
-                                if( textsAsSvgPaths then
-                                    element = textToSvgPath( child "refdes" )
-                                else
-                                    element = addText( child "refdes" )   
-                                )
-                                                 
-                                if( boundp( 'fabricationTop ) then
-                                    tconc( fabricationTop element )
-                                else
-                                    fabricationTop = tconc( nil element )
-                                )                 
+                            )   
+                            ; OTHER LAYERS, WHICH HAVE TO BE CONSIDERED, CAN BE ADDED HERE
+                            (
+                                t
+                                ; ignored
                             )
-                        )      
-                        (
-                            "REF DES/ASSEMBLY_BOTTOM"
-                            when( child->objType == "text"    
-                                if( textsAsSvgPaths then
-                                    element = textToSvgPath( child "refdes" )
-                                else
-                                    element = addText( child "refdes" )   
-                                )
-                                                    
-                                if( boundp( 'fabricationBottom ) then
-                                    tconc( fabricationBottom element )
-                                else
-                                    fabricationBottom = tconc( nil element )
-                                )                 
-                            )
-                        )    
-                        (
-                            "COMPONENT VALUE/ASSEMBLY_TOP"
-                            when( child->objType == "text"  
-                                if( textsAsSvgPaths then
-                                    element = textToSvgPath( child "value" )                                    
-                                else
-                                    element = addText( child "value" )
-                                )
-                                  
-                                if( boundp( 'fabricationTop ) then
-                                    tconc( fabricationTop element )
-                                else
-                                    fabricationTop = tconc( nil element )
-                                )                 
-                            )
-                        )      
-                        (
-                            "COMPONENT VALUE/ASSEMBLY_BOTTOM"
-                            when( child->objType == "text"    
-                                if( textsAsSvgPaths then
-                                    element = textToSvgPath( child "value" )                                    
-                                else
-                                    element = addText( child "value" )
-                                )  
-
-                                if( boundp( 'fabricationBottom ) then
-                                    tconc( fabricationBottom element )
-                                else
-                                    fabricationBottom = tconc( nil element )
-                                )                 
-                            )
-                        )   
-                        ; OTHER LAYERS, WHICH HAVE TO BE CONSIDERED, CAN BE ADDED HERE
-                        (
-                            t
-                            ; ignored
                         )
-                    )
-                ) 
-            )       
+                    ) 
+                )    
+            )   
         ) 
 
         ; TOP SILKSCREEN

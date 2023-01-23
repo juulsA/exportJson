@@ -23,6 +23,8 @@ When an alternate part are used, the value of the part is changed to the value o
 
 By passing the optional argument `?excludeDNP t` to the export function ( `exportJson( ?excludeDNP t )` ) all fabrication and silkscreen data of an unplaced component are ignored.
 
+Parts with no reference designator assigned are not included in the interactive BOM.
+
 ## Custom properties
 Any custom properties assigned to a component are added to the `extra_fields`.
 
@@ -37,9 +39,3 @@ Only the following layers are considered for file creation:
 
 ## Example
 As an example I have done the json export and the ibom creation for the [AD-FMCOMMS3-EBZ](https://wiki.analog.com/resources/eval/user-guides/ad-fmcomms3-ebz/hardware) design, which `.brd` file is freely accessible.
-
-## Open tasks
-- [x] changed `excludeTexts` to `excludeDNP` in the `exportJson` function to suppress all fabrication and silkscreen data for `DNP` components ( inspired by [qu1ck](https://github.com/openscopeproject/InteractiveHtmlBom/issues/336#issuecomment-1323722800) )
-- [x] generate pads as `svgpaths` instead of `polygons`
-- [x] generate text as svgpaths ( providing `font_data` is not possible )
-- [ ] handle "donut" pads
