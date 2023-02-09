@@ -2150,7 +2150,7 @@ procedure( writeJsonFile( @key ( variant nil ) ( symbols 'unbound ) ( alternateP
                 )               
 
                 close( outPort )                
-                axlUIConfirm( "Export complete!" 'info )
+                print( "Export complete!" )
 
             else 
                 axlUIConfirm( "Can not open file or write to file ..." 'error )
