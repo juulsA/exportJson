@@ -2280,7 +2280,7 @@ procedure( exportJson( @key ( textsAsSvgPaths t ) ( excludeDNP nil ) ( rev "" ) 
         else
             ; if no variant is available
             warn( "No variant.lst found, exporting entire design ... ")
-            writeJsonFile( ?textsAsSvgPaths textsAsSvgPaths )        
+            writeJsonFile( ?textsAsSvgPaths textsAsSvgPaths ?rev rev ?company company )        
         )  
     )
 )
