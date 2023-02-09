@@ -1,6 +1,6 @@
 axlCmdRegister( "exportJson" `exportJson )
 
-procedure( addMetadata( dsnName @optional ( rev "" ) ( company "" ) )
+procedure( addMetadata( dsnName rev company )
     let( ( metadata )    
 
         when( rev == ""
@@ -2087,7 +2087,7 @@ procedure( addNets()
     )
 )
 
-procedure( writeJsonFile( @key ( variant nil ) ( symbols 'unbound ) ( alternateParts 'unbound ) ( textsAsSvgPaths t ) ( excludeDNP nil ) )
+procedure( writeJsonFile( @key ( variant nil ) ( symbols 'unbound ) ( alternateParts 'unbound ) ( textsAsSvgPaths t ) ( excludeDNP nil ) ( rev "" ) ( company "" ) )
     let( ( outPort pcbData )
         workingDir = getWorkingDir()
         dsnName = axlCurrentDesign()
@@ -2122,7 +2122,7 @@ procedure( writeJsonFile( @key ( variant nil ) ( symbols 'unbound ) ( alternateP
                             addIndent(    
                                 strcat(     
                                     buildString( list(
-                                        addMetadata( dsnName )
+                                        addMetadata( dsnName rev company )
                                         addBoardGeometry( list( '( 10.0 10.0 ) '( 10.0 10.0 ) ) )
                                         addSymbols( symbols textsAsSvgPaths excludeDNP )            
                                         )             
@@ -2147,17 +2147,18 @@ procedure( writeJsonFile( @key ( variant nil ) ( symbols 'unbound ) ( alternateP
                 foreach( line lines
                     fprintf( outPort line )
                     fprintf( outPort "\n" )
-                )
+                )               
 
-                printf( "Export complete ... \n" )
-
-                close( outPort )
+                close( outPort )                
+                axlUIConfirm( "Export complete!" 'info )
 
             else 
-                error( "Can not open file or write to file ..." )  
+                axlUIConfirm( "Can not open file or write to file ..." 'error )
+                ; error( "Can not open file or write to file ..." )  
             )
         else
-            error( "Directory was not created ..." ) 
+            ; error( "Directory was not created ..." ) 
+            axlUIConfirm( "Directory was not created ..." 'error )
         )
     )    
 )
@@ -2247,7 +2248,7 @@ procedure( getVariantInfo()
     )    
 )
 
-procedure( exportJson( @key ( textsAsSvgPaths t ) ( excludeDNP nil ) )
+procedure( exportJson( @key ( textsAsSvgPaths t ) ( excludeDNP nil ) ( rev "" ) ( company "" ) )
     let( ( ( variantFile "Variants.lst" ) variantInformation variantSymbolList alternateParts symbols )
         
         ; information
@@ -2271,7 +2272,7 @@ procedure( exportJson( @key ( textsAsSvgPaths t ) ( excludeDNP nil ) )
 
                     ; build symbol list
                     symbols = mapcar( lambda( ( refdes ) axlDBFindByName( 'refdes refdes )->symbol ) variantSymbolList[key] )
-                    writeJsonFile( ?variant key ?symbols symbols ?alternateParts alternateParts ?textsAsSvgPaths textsAsSvgPaths ?excludeDNP excludeDNP )                
+                    writeJsonFile( ?variant key ?symbols symbols ?alternateParts alternateParts ?textsAsSvgPaths textsAsSvgPaths ?excludeDNP excludeDNP ?rev rev ?company company )                
                 )        
             else
                 error( "Tables could not be created ... " ) 

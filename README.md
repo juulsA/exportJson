@@ -12,7 +12,7 @@ To make the skill script available for use, you need to copy the `exportJson.il`
 Once the script is loaded successfully, you can start exporting the json file by typing `exportJson + enter` in the command line.
 A directory named `json` is created in your project folder containing the `.json`.
 
-The script uses the "project name" ( optional:  + "_" + "variant" ) as the file name and asks for the optional arguments `revision` and `company` but you can pass the revision and company name as arguments to the [`addMetadata`](https://github.com/juulsA/exportJson/blob/00f01b0105800a2920b9ec6f3041799332a9ff84/exportJson.il#L3) function by changing this [line](https://github.com/juulsA/exportJson/blob/00f01b0105800a2920b9ec6f3041799332a9ff84/exportJson.il#L2048) to your needs. The input prompt is then suppressed.
+The script uses the "project name" ( optional:  + "_" + "variant" ) as the file name and asks for the optional arguments `revision` and `company`. By passing `?rev "xyz"` and `?company "name"` as arguments to the `exportJson` function, the input prompt is suppressed and these values are used for file generation. This is can be useful to customize the function to your needs.
 
 ## Texts
 Texts are represented as `svgpaths` by default. If you want to use custom `font_data` or the newstroke font you can pass the optional argument `?textsAsSvgPaths nil` to the export function( `exportJson( ?textsAsSvgPaths nil )` ) and the texts are described as defined in [DATAFORMAT.md](https://github.com/openscopeproject/InteractiveHtmlBom/blob/master/DATAFORMAT.md#text).
