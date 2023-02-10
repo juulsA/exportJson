@@ -39,3 +39,6 @@ Only the following layers are considered for file creation:
 
 ## Example
 As an example I have done the json export and the ibom creation for the [AD-FMCOMMS3-EBZ](https://wiki.analog.com/resources/eval/user-guides/ad-fmcomms3-ebz/hardware) design, which `.brd` file is freely accessible.
+
+## Todo
+- [ ] use segment width instead of 0.1 (predefined) for fabrication- and silkscreen layer
