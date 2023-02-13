@@ -63,7 +63,7 @@ procedure( addIndent( string @optional ( tabs 1 ) )
 ; }
 ; ```
 
-procedure( addLine( segment @optional ( isEtch nil ) ( width 0.1 ) )
+procedure( addLine( segment width @optional ( isEtch nil ) )
     let( ( extents xStart yStart xEnd yEnd element )    
         extents = segment->startEnd
 
@@ -107,7 +107,7 @@ procedure( addLine( segment @optional ( isEtch nil ) ( width 0.1 ) )
 ; }
 ; ```
 
-procedure( addCircle( segment @optional ( width 0.1 ) )
+procedure( addCircle( segment width )
     let( ( xy xStart yStart radius element )
         xy = segment->xy
         xStart = car( xy )
@@ -141,7 +141,7 @@ procedure( addCircle( segment @optional ( width 0.1 ) )
 ; }
 ; ```
 
-procedure( addArc( segment @optional ( isEtch nil ) ( width 0.1 ) )
+procedure( addArc( segment width @optional ( isEtch nil ) )
     let( ( xy xCenter yCenter radius extents xStart yStart xEnd yEnd cw angle1 angle2 startAngle endAngle element )
         xy = segment->xy
         xCenter = car( xy )
@@ -230,19 +230,19 @@ procedure( addArc( segment @optional ( isEtch nil ) ( width 0.1 ) )
     )
 )
 
-procedure( parseSegment( segment @optional ( isEtch nil ) )
+procedure( parseSegment( segment width @optional ( isEtch nil ) )
     let( ( element )
         case( segment->objType
             (
                 "line"
-                element = addLine( segment isEtch )        
+                element = addLine( segment width isEtch )        
             )
             (
                 "arc"
                 if( segment->isCirle then
-                    element = addCircle( segment )
+                    element = addCircle( segment width )
                 else
-                    element = addArc( segment isEtch )
+                    element = addArc( segment width isEtch )
                 )
             )
             (
@@ -680,7 +680,7 @@ procedure( createZone( zone )
     )
 )
 
-procedure( addBoardGeometry( @optional ( expand list( '( 0.0 0.0) '( 0.0 0.0 ) ) ) )
+procedure( addBoardGeometry( pcbLinewidth margin )
     let( ( ( edges 'unbound ) dsn outline segments extents xStart yStart xEnd yEnd bBox element boardGeometry )
 
         dsn = axlDBGetDesign()
@@ -689,11 +689,11 @@ procedure( addBoardGeometry( @optional ( expand list( '( 0.0 0.0) '( 0.0 0.0 ) )
         
         extents =  axlDBGetExtents( segments nil )
 
-        xStart = caar( extents ) - caar( expand )
-        yStart = -cadar( extents ) + cadar( expand ) ;multiply by -1, s. ibom y convention
+        xStart = caar( extents ) - caar( margin )
+        yStart = -cadar( extents ) + cadar( margin ) ;multiply by -1, s. ibom y convention
         
-        xEnd = caadr( extents ) + caadr( expand )        
-        yEnd = -cadadr( extents ) - cadadr( expand ) ; multiply by -1, s. ibom y convention
+        xEnd = caadr( extents ) + caadr( margin )        
+        yEnd = -cadadr( extents ) - cadadr( margin ) ; multiply by -1, s. ibom y convention
 
         bBox = strcat( 
             "{\n"
@@ -706,7 +706,11 @@ procedure( addBoardGeometry( @optional ( expand list( '( 0.0 0.0) '( 0.0 0.0 ) )
 
         foreach( segment segments
             ; parse segment
-            element = parseSegment( segment )  
+            if( pcbLinewidth then 
+                element = parseSegment( segment pcbLinewidth )  
+            else
+                element = parseSegment( segment segment->width )  
+            )                
     
             if( boundp( 'edges ) then
                 tconc( edges element )
@@ -721,7 +725,11 @@ procedure( addBoardGeometry( @optional ( expand list( '( 0.0 0.0) '( 0.0 0.0 ) )
 
         foreach( segment segments
             ; parse segment
-            element = parseSegment( segment )  
+            if( pcbLinewidth then 
+                element = parseSegment( segment pcbLinewidth )  
+            else
+                element = parseSegment( segment segment->width )  
+            )
     
             if( boundp( 'edges ) then
                 tconc( edges element )
@@ -1509,7 +1517,7 @@ procedure( addFootprint( symbol )
     )        
 )
 
-procedure( addSymbols( @optional ( variantSymbolList 'unbound ) ( textsAsSvgPaths t ) ( excludeDNP nil ) )
+procedure( addSymbols( variantSymbolList textsAsSvgPaths excludeDNP fabricationLayerLinewidth silkscreenLayerLinewidth )
     let( (  ( silkscreenTop 'unbound ) 
             ( silkscreenBottom 'unbound ) 
             ( fabricationTop 'unbound ) 
@@ -1564,7 +1572,12 @@ procedure( addSymbols( @optional ( variantSymbolList 'unbound ) ( textsAsSvgPath
 
                                     ; loop though segments of each child
                                     foreach( segment segments
-                                        element = parseSegment( segment )                   
+                                        if( silkscreenLayerLinewidth then
+                                            element = parseSegment( segment silkscreenLayerLinewidth )
+                                        else
+                                            element = parseSegment( segment segment->width )                   
+                                        )
+
                                         if( boundp( 'silkscreenTop ) then
                                             tconc( silkscreenTop element )
                                         else
@@ -1594,7 +1607,12 @@ procedure( addSymbols( @optional ( variantSymbolList 'unbound ) ( textsAsSvgPath
 
                                     ; loop though segments of each child
                                     foreach( segment segments
-                                        element = parseSegment( segment )                   
+                                        if( silkscreenLayerLinewidth then
+                                            element = parseSegment( segment silkscreenLayerLinewidth )
+                                        else
+                                            element = parseSegment( segment segment->width )                   
+                                        )
+
                                         if( boundp( 'silkscreenBottom ) then
                                             tconc( silkscreenBottom element )
                                         else
@@ -1688,7 +1706,12 @@ procedure( addSymbols( @optional ( variantSymbolList 'unbound ) ( textsAsSvgPath
 
                                     ; loop though segments of each child
                                     foreach( segment segments
-                                        element = parseSegment( segment )                   
+                                        if( fabricationLayerLinewidth then
+                                            element = parseSegment( segment fabricationLayerLinewidth )
+                                        else
+                                            element = parseSegment( segment segment->width )                   
+                                        )         
+
                                         if( boundp( 'fabricationTop ) then
                                             tconc( fabricationTop element )
                                         else
@@ -1718,7 +1741,12 @@ procedure( addSymbols( @optional ( variantSymbolList 'unbound ) ( textsAsSvgPath
 
                                     ; loop though segments of each child
                                     foreach( segment segments
-                                        element = parseSegment( segment )                   
+                                        if( fabricationLayerLinewidth then
+                                            element = parseSegment( segment fabricationLayerLinewidth )
+                                        else
+                                            element = parseSegment( segment segment->width )                   
+                                        )     
+
                                         if( boundp( 'fabricationBottom ) then
                                             tconc( fabricationBottom element )
                                         else
@@ -1927,7 +1955,7 @@ procedure( addCopper()
 
                             ; loop though segments of each child
                             foreach( segment segments
-                                track = parseSegment( segment t ) 
+                                track = parseSegment( segment segment->width t ) 
                                 
                                 case( child->layer 
                                     (
@@ -2087,7 +2115,7 @@ procedure( addNets()
     )
 )
 
-procedure( writeJsonFile( @key ( variant nil ) ( symbols 'unbound ) ( alternateParts 'unbound ) ( textsAsSvgPaths t ) ( excludeDNP nil ) ( rev "" ) ( company "" ) )
+procedure( writeJsonFile( @key ( variant nil ) ( symbols 'unbound ) ( alternateParts 'unbound ) ( textsAsSvgPaths t ) ( excludeDNP nil ) ( pcbLinewidth nil ) ( fabricationLayerLinewidth nil ) ( silkscreenLayerLinewidth nil ) ( margin list( '( 0.0 0.0 ) '( 0.0 0.0 ) ) ) ( rev "" ) ( company "" ) )
     let( ( outPort pcbData )
         workingDir = getWorkingDir()
         dsnName = axlCurrentDesign()
@@ -2123,8 +2151,8 @@ procedure( writeJsonFile( @key ( variant nil ) ( symbols 'unbound ) ( alternateP
                                 strcat(     
                                     buildString( list(
                                         addMetadata( dsnName rev company )
-                                        addBoardGeometry( list( '( 10.0 10.0 ) '( 10.0 10.0 ) ) )
-                                        addSymbols( symbols textsAsSvgPaths excludeDNP )            
+                                        addBoardGeometry( pcbLinewidth margin )
+                                        addSymbols( symbols textsAsSvgPaths excludeDNP fabricationLayerLinewidth silkscreenLayerLinewidth )            
                                         )             
                                         ",\n" 
                                     )              
@@ -2248,7 +2276,7 @@ procedure( getVariantInfo()
     )    
 )
 
-procedure( exportJson( @key ( textsAsSvgPaths t ) ( excludeDNP nil ) ( rev "" ) ( company "" ) )
+procedure( exportJson( @key ( textsAsSvgPaths t ) ( excludeDNP nil ) ( pcbLinewidth nil ) ( fabricationLayerLinewidth nil ) ( silkscreenLayerLinewidth nil ) ( margin list( '( 0.0 0.0 ) '( 0.0 0.0 ) ) ) ( rev "" ) ( company "" ) )
     let( ( ( variantFile "Variants.lst" ) variantInformation variantSymbolList alternateParts symbols )
         
         ; information
@@ -2272,7 +2300,9 @@ procedure( exportJson( @key ( textsAsSvgPaths t ) ( excludeDNP nil ) ( rev "" ) 
 
                     ; build symbol list
                     symbols = mapcar( lambda( ( refdes ) axlDBFindByName( 'refdes refdes )->symbol ) variantSymbolList[key] )
-                    writeJsonFile( ?variant key ?symbols symbols ?alternateParts alternateParts ?textsAsSvgPaths textsAsSvgPaths ?excludeDNP excludeDNP ?rev rev ?company company )                
+                    writeJsonFile( ?variant key ?symbols symbols ?alternateParts alternateParts ?textsAsSvgPaths textsAsSvgPaths ?excludeDNP excludeDNP
+                        ?pcbLinewidth pcbLinewidth ?fabricationLayerLinewidth fabricationLayerLinewidth ?silkscreenLayerLinewidth silkscreenLayerLinewidth ?margin margin
+                        ?rev rev ?company company )                
                 )        
             else
                 error( "Tables could not be created ... " ) 
@@ -2280,7 +2310,9 @@ procedure( exportJson( @key ( textsAsSvgPaths t ) ( excludeDNP nil ) ( rev "" ) 
         else
             ; if no variant is available
             warn( "No variant.lst found, exporting entire design ... ")
-            writeJsonFile( ?textsAsSvgPaths textsAsSvgPaths ?rev rev ?company company )        
+            writeJsonFile( ?textsAsSvgPaths textsAsSvgPaths
+                ?pcbLinewidth pcbLinewidth ?fabricationLayerLinewidth fabricationLayerLinewidth ?silkscreenLayerLinewidth silkscreenLayerLinewidth ?margin margin
+                ?rev rev ?company company )        
         )  
     )
 )

@@ -14,6 +14,31 @@ A directory named `json` is created in your project folder containing the `.json
 
 The script uses the "project name" ( optional:  + "_" + "variant" ) as the file name and asks for the optional arguments `revision` and `company`. By passing `?rev "xyz"` and `?company "name"` as arguments to the `exportJson` function, the input prompt is suppressed and these values are used for file generation. This is can be useful to customize the function to your needs.
 
+### Optional arguments
+| argument | description | type |
+| ------| ------ | ------ |
+| ?textAsSvgPaths | default: t, uses font-data otherwise | bool |
+| ?excludeDNP | default: nil, all fabrication and silkscreen data of an unplaced component are ignored | bool |
+| ?pcbLineWidth | override value | float |
+| ?fabricationLayerLinewidth | override value | float |
+| ?silkscreenLayerLinewidth | override value | float |
+| ?margin | extra spacing for displaying | list / float |
+| ?rev | revision | string |
+| ?company | company name | string |
+
+## Linewidths
+Without appending any additional arguments to the `exportJson` function, the linewidth of every segment is assigned to its original value. However, in some cases you may want to use a different and consistent linewidth as used in the pcb design. In this case three optional arguments can be passed to override the linewidth of pcb outline (`?pcbLinewidth`), the fabrication layer (`?fabricationLayerLinewidth`) and the silkscreen layer (`silkscreenLayerLinewidth`). For example: 
+```
+    exportJson( ?pcbLinewidth 0.1 ?fabricationLayerLinewidth 0.2 ?silkscreenLayerLinewidth 0.2 )
+```
+uses a 0.1 unit linewidth for the pcb outline and a linewidth of 0.2 unit for the fabrication and the silkscreen layer.
+
+## Margin
+Because the extents are defined by the pcb's minimum and maximum x/y values you may want to add some extra spacing. The function call below, adds a spacing of 20.0 unit to all four directions ( `list( '( spacingLeft spacingBottom ) '( spacingRight spacingTop ) )` ).
+```
+    exportJson( ?margin list( '( 20.0 20.0 ) '( 20.0 20.0 ) ) )
+```
+
 ## Texts
 Texts are represented as `svgpaths` by default. If you want to use custom `font_data` or the newstroke font you can pass the optional argument `?textsAsSvgPaths nil` to the export function( `exportJson( ?textsAsSvgPaths nil )` ) and the texts are described as defined in [DATAFORMAT.md](https://github.com/openscopeproject/InteractiveHtmlBom/blob/master/DATAFORMAT.md#text).
 
@@ -39,6 +64,3 @@ Only the following layers are considered for file creation:
 
 ## Example
 As an example I have done the json export and the ibom creation for the [AD-FMCOMMS3-EBZ](https://wiki.analog.com/resources/eval/user-guides/ad-fmcomms3-ebz/hardware) design, which `.brd` file is freely accessible.
-
-## Todo
-- [ ] use segment width instead of 0.1 (predefined) for fabrication- and silkscreen layer
