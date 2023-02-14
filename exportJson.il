@@ -1280,7 +1280,15 @@ procedure( addComponentTable( @optional ( variantSymbolList 'unbound ) ( alterna
                 userProperties = axlDBGetProperties( symbol->component->compdef )
 
                 foreach( userProperty userProperties
-                    extraField = strcat( "\"" sprintf( nil "%L" car( userProperty) ) "\": \"" pcreReplace( pattern cadr( userProperty ) "\\\\\"" 0 ) "\"" )
+                    ; check, if property is string
+                    if( sprintf( nil "%L" type( cadr( userProperty ) ) ) == "string" then
+                        userPropertyValue = cadr( userProperty )                    
+                    else
+                        ; check, for other types, tbd.
+                        userPropertyValue = sprintf( nil "%L" cadr( userProperty ) )
+                    )
+                    extraField = strcat( "\"" sprintf( nil "%L" car( userProperty) ) "\": \"" pcreReplace( pattern userPropertyValue "\\\\\"" 0 ) "\"" )
+                    
                     ; escape fields correctly
                     extraField = pcreReplace( percent extraField "%%" 0 )
 
