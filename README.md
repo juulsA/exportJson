@@ -62,5 +62,38 @@ Only the following layers are considered for file creation:
 | fabrication | PACKAGE GEOMETRY/ASSEMBLY_TOP<br>PACKAGE GEOMETRY/ASSEMBLY_BOTTOM<br>REF DES/ASSEMBLY_TOP<br>REF DES/ASSEMBLY_BOTTOM<br>COMPONENT_VALUE/ASSEMBLY_TOP<br>COMPONENT_VALUE/ASSEMBLY_BOTTOM |
 | silkscreen | PACKAGE GEOMETRY/SILKSCREEN_TOP<br>PACKAGE GEOMETRY/SILKSCREEN_BOTTOM<br>REF DES/SILKSCREEN_TOP<br>REF DES/SILKSCREEN_BOTTOM<br>COMPONENT_VALUE/SILKSCREEN_TOP<br>COMPONENT_VALUE/SILKSCREEN_BOTTOM |
 
+## Call interactive HTML BOM from allegro
+If you want to export the json file and convert it to the ibom in one step, you can use the code snippet below to write your own script.
+For `ibomArgs` see [command line options](https://github.com/openscopeproject/InteractiveHtmlBom/wiki/Usage#command-line-options).
+```
+ibomSourcePath = ...
+
+when( ibomSourcePath
+    ibomPythonFile = strcat( ibomSourcePath "generate_interactive_bom.py" )		
+)
+
+ibomArgs = "--name %f --dnp-field DNP --show-fabrication --hide-silkscreen --dest-dir ../ibom --layer-view F --dark-mode --no-browser"
+
+workingDir = getWorkingDir()
+
+; list create files in json directory
+files = getDirFiles( "json" ) 
+
+foreach( file files 
+    subStrings = parseString( file "." )
+
+    ; if file is json file
+    when( car( last( subStrings ) ) == "json" 
+        fullFilePath = strcat( "\"" buildString( list( workingDir "json" file ) "/" ) "\"" )
+        command = buildString( list( "python" ibomPythonFile fullFilePath ibomArgs ) )
+        result = shell( command )	
+
+        unless( result				
+            axlUIConfirm( "Error during ibom generation ..." 'error )
+        )
+    )						
+)				
+axlUIConfirm( "Process finished!" 'info )
+```
 ## Example
 As an example I have done the json export and the ibom creation for the [AD-FMCOMMS3-EBZ](https://wiki.analog.com/resources/eval/user-guides/ad-fmcomms3-ebz/hardware) design, which `.brd` file is freely accessible.
