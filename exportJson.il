@@ -1230,7 +1230,7 @@ procedure( addPad( pin )
 )
 
 procedure( addComponentTable( @optional ( variantSymbolList 'unbound ) ( alternateParts 'unbound ) )
-    let( ( pattern dsn symbols refDes layer value ( extraFields 'unbound ) userProperties extraField component ( components 'unbound ) )
+    let( ( pattern dsn symbols refDes layer value ( extraFields 'unbound ) userProperties propertyType extraField component ( components 'unbound ) )
 
         pattern = pcreCompile( "[\\\"]" )
         percent = pcreCompile( "%" )
@@ -1280,13 +1280,29 @@ procedure( addComponentTable( @optional ( variantSymbolList 'unbound ) ( alterna
                 userProperties = axlDBGetProperties( symbol->component->compdef )
 
                 foreach( userProperty userProperties
-                    ; check, if property is string
-                    if( sprintf( nil "%L" type( cadr( userProperty ) ) ) == "string" then
-                        userPropertyValue = cadr( userProperty )                    
-                    else
-                        ; check, for other types, tbd.
-                        userPropertyValue = sprintf( nil "%L" cadr( userProperty ) )
+                    ; get data type
+                    propertyType = sprintf( nil "%L" type( cadr( userProperty ) ) )
+
+                    ; convert value to string
+                    case( propertyType
+                        (
+                            "fixnum"
+                            userPropertyValue = sprintf( nil "%d" cadr( userProperty ) )
+                        )
+                        (
+                            "flonum"
+                            userPropertyValue = sprintf( nil "%f" cadr( userProperty ) )
+                        )
+                        (
+                            "string"
+                            userPropertyValue = cadr( userProperty )
+                        )
+                        (
+                            t
+                            userPropertyValue = sprintf( nil "%L" cadr( userProperty ) )
+                        )
                     )
+                    
                     extraField = strcat( "\"" sprintf( nil "%L" car( userProperty) ) "\": \"" pcreReplace( pattern userPropertyValue "\\\\\"" 0 ) "\"" )
                     
                     ; escape fields correctly
