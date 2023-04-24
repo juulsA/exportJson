@@ -681,12 +681,22 @@ procedure( createZone( zone )
 )
 
 procedure( addBoardGeometry( pcbLinewidth margin )
-    let( ( ( edges 'unbound ) dsn outline segments extents xStart yStart xEnd yEnd bBox element boardGeometry )
+    let( ( ( edges 'unbound ) cdsVersion dsn outline segments extents xStart yStart xEnd yEnd bBox element boardGeometry )
+			
+		; get cds version
+		cdsVersion = atof( axlGetVariableList("cdsversion") )
+		printf( "CDS version: %f\n" cdsVersion )
 
-        dsn = axlDBGetDesign()
-        outline = dsn->designOutline
-        segments = outline->segments
-        
+		; check version, because of different layer mapping
+		if( cdsVersion >= 17.4 then
+			dsn = axlDBGetDesign()
+			outline = dsn->designOutline
+		else
+			outline = car( axlDBGetShapes( "Board Geometry/Outline" ) )
+		)
+			
+		segments = outline->segments
+
         extents =  axlDBGetExtents( segments nil )
 
         xStart = caar( extents ) - caar( margin )
@@ -719,24 +729,26 @@ procedure( addBoardGeometry( pcbLinewidth margin )
             )      
         )
 
-        ; add cutout to edges list
-        cutout = car( axlDBGetShapes( "BOARD GEOMETRY/CUTOUT" ) )
-        segments = cutout->segments
+		when( cdsVersion >= 17.4
+			; add cutout to edges list
+			cutout = car( axlDBGetShapes( "BOARD GEOMETRY/CUTOUT" ) )
+			segments = cutout->segments
 
-        foreach( segment segments
-            ; parse segment
-            if( pcbLinewidth then 
-                element = parseSegment( segment pcbLinewidth )  
-            else
-                element = parseSegment( segment segment->width )  
-            )
-    
-            if( boundp( 'edges ) then
-                tconc( edges element )
-            else
-                edges = tconc( nil element )
-            )      
-        )
+			foreach( segment segments
+				; parse segment
+				if( pcbLinewidth then 
+					element = parseSegment( segment pcbLinewidth )  
+				else
+					element = parseSegment( segment segment->width )  
+				)
+		
+				if( boundp( 'edges ) then
+					tconc( edges element )
+				else
+					edges = tconc( nil element )
+				)      
+			)
+		)
 
         ; build string
         edges = buildString( car( edges ) ",\n" )
