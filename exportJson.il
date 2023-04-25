@@ -1392,7 +1392,7 @@ procedure( addFootprint( symbol )
         refdes = symbol->refdes       
 
         ; get symbol layer
-        if( symbol->layer == "TOP" then
+        if( symbol->isMirrored == nil then
             layer = "\"layer\": \"F\""
         else
             layer = "\"layer\": \"B\""
