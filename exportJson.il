@@ -680,12 +680,8 @@ procedure( createZone( zone )
     )
 )
 
-procedure( addBoardGeometry( pcbLinewidth margin )
-    let( ( ( edges 'unbound ) cdsVersion dsn outline segments extents xStart yStart xEnd yEnd bBox element boardGeometry )
-			
-		; get cds version
-		cdsVersion = atof( axlGetVariableList("cdsversion") )
-		printf( "CDS version: %f\n" cdsVersion )
+procedure( addBoardGeometry( pcbLinewidth margin cdsVersion )
+    let( ( ( edges 'unbound ) dsn outline segments extents xStart yStart xEnd yEnd bBox element boardGeometry )
 
 		; check version, because of different layer mapping
 		if( cdsVersion >= 17.4 then
@@ -1241,7 +1237,7 @@ procedure( addPad( pin )
     )
 )
 
-procedure( addComponentTable( @optional ( variantSymbolList 'unbound ) ( alternateParts 'unbound ) )
+procedure( addComponentTable( @optional ( variantSymbolList 'unbound ) ( alternateParts 'unbound ) cdsVersion )
     let( ( pattern dsn symbols refDes layer value ( extraFields 'unbound ) userProperties propertyType extraField component ( components 'unbound ) )
 
         pattern = pcreCompile( "[\\\"]" )
@@ -1256,11 +1252,19 @@ procedure( addComponentTable( @optional ( variantSymbolList 'unbound ) ( alterna
             when( refDes
 
                 ; get symbol layer
-                if( symbol->layer == "TOP" then
-                    layer = "\"F\""
-                else
-                    layer = "\"B\""
-                )
+				if( cdsVersion >= 17.4 then					
+					if( symbol->layer == "TOP" then
+						layer = "\"F\""
+					else
+						layer = "\"B\""
+					)
+				else
+					if( symbol->isMirrored == nil then
+						layer = "\"F\""
+					else
+						layer = "\"B\""
+					)
+				)
 
                 ; handle alternate parts
                 if( boundp( 'alternateParts ) then
@@ -1375,7 +1379,7 @@ procedure( addComponentTable( @optional ( variantSymbolList 'unbound ) ( alterna
     )   
 )
 
-procedure( addFootprint( symbol )
+procedure( addFootprint( symbol cdsVersion )
     let( (  ( sizeCenterTop 'unbound )
             ( sizeCenterBottom 'unbound )
             ( sizeTop list( 0.0 0.0 ) )
@@ -1392,11 +1396,19 @@ procedure( addFootprint( symbol )
         refdes = symbol->refdes       
 
         ; get symbol layer
-        if( symbol->isMirrored == nil then
-            layer = "\"layer\": \"F\""
-        else
-            layer = "\"layer\": \"B\""
-        )
+		if( cdsVersion >= 17.4 then		
+			if( symbol->layer == "TOP" then
+				layer = "\"layer\": \"F\""
+			else
+				layer = "\"layer\": \"B\""
+			)
+		else
+			if( symbol->isMirrored == nil then
+				layer = "\"layer\": \"F\""
+			else
+				layer = "\"layer\": \"B\""
+			)
+		)
         
         ; get symbol origin and rotation angle
         xy = symbol->xy
@@ -1553,7 +1565,7 @@ procedure( addFootprint( symbol )
     )        
 )
 
-procedure( addSymbols( variantSymbolList textsAsSvgPaths excludeDNP fabricationLayerLinewidth silkscreenLayerLinewidth )
+procedure( addSymbols( variantSymbolList textsAsSvgPaths excludeDNP fabricationLayerLinewidth silkscreenLayerLinewidth cdsVersion )
     let( (  ( silkscreenTop 'unbound ) 
             ( silkscreenBottom 'unbound ) 
             ( fabricationTop 'unbound ) 
@@ -1575,7 +1587,7 @@ procedure( addSymbols( variantSymbolList textsAsSvgPaths excludeDNP fabricationL
             ; make bom
             when( symbol->refdes               
                 ; adding all pads
-                footprint = addFootprint( symbol )
+                footprint = addFootprint( symbol cdsVersion )
 
                 ; check if symbol is in variantS
                 if( boundp( 'variantSymbolList ) && excludeDNP then
@@ -2153,6 +2165,10 @@ procedure( addNets()
 
 procedure( writeJsonFile( @key ( variant nil ) ( symbols 'unbound ) ( alternateParts 'unbound ) ( textsAsSvgPaths t ) ( excludeDNP nil ) ( pcbLinewidth nil ) ( fabricationLayerLinewidth nil ) ( silkscreenLayerLinewidth nil ) ( margin list( '( 0.0 0.0 ) '( 0.0 0.0 ) ) ) ( rev "" ) ( company "" ) )
     let( ( outPort pcbData )
+		; get cds version
+		cdsVersion = atof( axlGetVariableList("cdsversion") )
+		printf( "CDS version: %f\n" cdsVersion )
+
         workingDir = getWorkingDir()
         dsnName = axlCurrentDesign()
         fileName = dsnName
@@ -2187,8 +2203,8 @@ procedure( writeJsonFile( @key ( variant nil ) ( symbols 'unbound ) ( alternateP
                                 strcat(     
                                     buildString( list(
                                         addMetadata( dsnName rev company )
-                                        addBoardGeometry( pcbLinewidth margin )
-                                        addSymbols( symbols textsAsSvgPaths excludeDNP fabricationLayerLinewidth silkscreenLayerLinewidth )            
+                                        addBoardGeometry( pcbLinewidth margin cdsVersion )
+                                        addSymbols( symbols textsAsSvgPaths excludeDNP fabricationLayerLinewidth silkscreenLayerLinewidth cdsVersion )            
                                         )             
                                         ",\n" 
                                     )              
@@ -2198,7 +2214,7 @@ procedure( writeJsonFile( @key ( variant nil ) ( symbols 'unbound ) ( alternateP
                             addCopper() ",\n"
                             addNets() "\n" 
                             "},\n"                    
-                            addComponentTable( symbols alternateParts )
+                            addComponentTable( symbols alternateParts cdsVersion )
                             "\n"
                         )                 
                     ) "\n"
