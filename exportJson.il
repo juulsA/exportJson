@@ -1268,8 +1268,8 @@ procedure( addComponentTable( @optional ( variantSymbolList 'unbound ) ( alterna
 
                 ; handle alternate parts
                 if( boundp( 'alternateParts ) then
-                    if( alternateParts[refDes] != nil then
-                        value = alternateParts[refDes]
+                    if( alternateParts[refDes] != nil && alternateParts[refDes]["VALUE"] then
+                        value = alternateParts[refDes]["VALUE"]
                     else
                         value = cadr( assoc( 'VALUE, axlDBGetProperties( symbol->component->compdef ) ) )                
                     )
@@ -2244,12 +2244,11 @@ procedure( writeJsonFile( @key ( variant nil ) ( symbols 'unbound ) ( alternateP
 )
 
 procedure( getVariantInfo()
-    let( (  (   variantFile "Variants.lst" ) 
+let( (  (   variantFile "Variants.lst" ) 
                 ( state "findVariant" )
-                pattern valueExpr inPort currentVariant variantTable alternateParts  symbols )       
+                pattern inPort currentVariant variantTable alternateParts part partProperties refDes symbols )       
 
-        pattern = pcreCompile("[()]")
-        valueExpr = pcreCompile( "VALUE=" )
+        pattern = pcreCompile("[(\")]")
 
         inPort = infile( variantFile )
 
@@ -2257,6 +2256,8 @@ procedure( getVariantInfo()
 
             variantTable = makeTable( "variantTable" nil )
             alternateParts = makeTable( "alternateParts" nil )
+			parts = makeTable( "parts" nil )
+			partProperties = makeTable( "partProperties" nil )
 
             while( gets( line inPort ) 
 
@@ -2295,7 +2296,13 @@ procedure( getVariantInfo()
 						    symbols = remove( ")" symbols )    
 						    symbols = mapcar( lambda( ( symbol ) pcreReplace( pattern symbol "" 0 ) )  symbols )						
 
-                            variantTable[currentVariant] = symbols
+							; append components to array
+                            variantTable[currentVariant] = symbols							
+							alternateParts[currentVariant] = parts
+
+							; initialize parts (again, clear previous values)
+							parts = makeTable( "parts" nil )							
+
                             state = "findVariant"
                         else
                             ; find variant specific information                            
@@ -2303,13 +2310,20 @@ procedure( getVariantInfo()
                             when( length( subStrings ) > 1
                                 refDes = pcreReplace( pattern nth( 0 subStrings ) "" 0 )
                                 
-                                foreach( subString subStrings
-                                    when( pcreMatchp( valueExpr subString )
-                                        value = parseString( subString "\"" )
-                                        alternateParts[refDes] = nth( 1 value )
-                                    )                                    
+                                foreach( subString subStrings	
+									; parse properties
+									valueKey = parseString( subString "=" )
+									
+									when( length(valueKey ) == 2 
+										partProperties[nth( 0 valueKey )] = pcreReplace( pattern nth( 1 valueKey ) "" 0 )									
+									)                                  
                                 )
 
+								; set part properties, clear properties
+								parts[refDes] = partProperties
+								partProperties = makeTable( "partProperties" nil )
+
+								; append to symbol list
                                 symbols = nconc( symbols list( nth( 0 subStrings ) ) )
                             )                            
                         )
@@ -2325,7 +2339,7 @@ procedure( getVariantInfo()
             error( "Can not read from file ... " )            
             nil
         )                  
-    )    
+    )       
 )
 
 procedure( exportJson( @key ( textsAsSvgPaths t ) ( excludeDNP nil ) ( pcbLinewidth nil ) ( fabricationLayerLinewidth nil ) ( silkscreenLayerLinewidth nil ) ( margin list( '( 0.0 0.0 ) '( 0.0 0.0 ) ) ) ( rev "" ) ( company "" ) )
@@ -2347,12 +2361,12 @@ procedure( exportJson( @key ( textsAsSvgPaths t ) ( excludeDNP nil ) ( pcbLinewi
                 variantSymbolList = car( variantInformation )
                 alternateParts = cadr( variantInformation )
 
-                foreach( key variantSymbolList
-                    printf( "Exporting .json for variant: %s\n" key )
+                foreach( variant variantSymbolList
+                    printf( "Exporting .json for variant: %s\n" variant )
 
                     ; build symbol list
-                    symbols = mapcar( lambda( ( refdes ) axlDBFindByName( 'refdes refdes )->symbol ) variantSymbolList[key] )
-                    writeJsonFile( ?variant key ?symbols symbols ?alternateParts alternateParts ?textsAsSvgPaths textsAsSvgPaths ?excludeDNP excludeDNP
+                    symbols = mapcar( lambda( ( refdes ) axlDBFindByName( 'refdes refdes )->symbol ) variantSymbolList[variant] )
+                    writeJsonFile( ?variant variant ?symbols symbols ?alternateParts alternateParts[variant] ?textsAsSvgPaths textsAsSvgPaths ?excludeDNP excludeDNP
                         ?pcbLinewidth pcbLinewidth ?fabricationLayerLinewidth fabricationLayerLinewidth ?silkscreenLayerLinewidth silkscreenLayerLinewidth ?margin margin
                         ?rev rev ?company company )                
                 )        
