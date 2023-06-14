@@ -17,6 +17,7 @@ The script uses the "project name" ( optional:  + "_" + "variant" ) as the file 
 ### Optional arguments
 | argument | description | type |
 | ------| ------ | ------ |
+| ?exportInnerLayers | default: nil, exports the inner layers | bool |
 | ?textAsSvgPaths | default: t, uses font-data otherwise | bool |
 | ?excludeDNP | default: nil, all fabrication and silkscreen data of an unplaced component are ignored | bool |
 | ?pcbLineWidth | override value | float |

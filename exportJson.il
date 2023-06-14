@@ -1970,18 +1970,21 @@ procedure( addSymbols( variantSymbolList textsAsSvgPaths excludeDNP fabricationL
     )
 )
 
-procedure( addCopper()
-    let( (  ( tracksTop 'unbound ) 
-            ( tracksBottom 'unbound ) 
-            ( zonesTop 'unbound )
-            ( zonesBottom 'unbound )
-            dsn nets branches children segments track zone ) 
+procedure( addCopper( exportInnerLayers )
+    let( ( tracks zones dsn nets layers branches children segments track zone layerName ) 
+		
+		tracks = makeTable( "tracks" nil )
+		zones = makeTable( "zones" nil )
+		
         dsn = axlDBGetDesign()
         nets = dsn->nets
+
+		layers = axlSubclassRoute()
+		layers = mapcar( lambda( ( layer ) strcat( "ETCH/" layer ) )  layers )
         
         ; find the dummy nets
         axlClearSelSet()
-        noNet = axlSelectByName("NET" "Dummy" )
+        noNet = axlSelectByName( "NET" "Dummy" )
         axlClearSelSet()
 
         ; append dummy nets to net list, to draw the copper
@@ -1996,148 +1999,115 @@ procedure( addCopper()
                 children = branch->children
 
                 foreach( child children 
-                    case( child->objType
-                        (
-                            "path"
-                            segments = child->segments
+					when( exportInnerLayers || child->layer == "ETCH/TOP" || child->layer == "ETCH/BOTTOM" || child->objType == "via"
+						case( child->objType
+							(
+								"path"
+								segments = child->segments
 
-                            ; loop though segments of each child
-                            foreach( segment segments
-                                track = parseSegment( segment segment->width t ) 
-                                
-                                case( child->layer 
-                                    (
-                                        "ETCH/TOP"
-                                        if( boundp( 'tracksTop ) then
-                                            tconc( tracksTop track )
-                                        else
-                                            tracksTop = tconc( nil track )
-                                        ) 
-                                    )
-                                    (
-                                        "ETCH/BOTTOM"
-                                        if( boundp( 'tracksBottom ) then
-                                            tconc( tracksBottom track )
-                                        else
-                                            tracksBottom = tconc( nil track )
-                                        ) 
-                                    )
-                                    (
-                                        t
-                                    )
-                                )                 
-                            )
+								; loop though segments of each child
+								foreach( segment segments
+									track = parseSegment( segment segment->width t ) 
 
-                        )
-                        (
-                            "pin"
-                        )
-                        (
-                            "shape"                          
-                            zone = createZone( child )
+									if( tracks[ child->layer ] then
+										tconc( tracks[ child->layer ] track )
+									else
+										tracks[ child->layer ] = tconc( nil track )
+									)                
+								)
+							)
+							(
+								"pin"
+							)
+							(
+								"shape"                          
+								zone = createZone( child )
 
-                            case( child->layer 
-                                ( 
-                                    "ETCH/TOP"                                   
-                                    if( boundp( 'zonesTop ) then
-                                        tconc( zonesTop zone )
-                                    else
-                                        zonesTop = tconc( nil zone )
-                                    ) 
-                                )
-                                (
-                                    "ETCH/BOTTOM"
-                                    if( boundp( 'zonesBottom ) then
-                                        tconc( zonesBottom zone )
-                                    else
-                                        zonesBottom = tconc( nil zone )
-                                    ) 
-                                )
-                                (
-                                    t
-                                )                         
-                            )                   
-                        )
-                        (
-                            "tee"
-                            ; a tee is only a point, there is nothing to draw
-                        )
-                        (
-                            "via"                                 
-                            element = addVia( child "ETCH/TOP" )                                    
-                            if( boundp( 'tracksTop ) then
-                                tconc( tracksTop element )
-                            else
-                                tracksTop = tconc( nil element )
-                            ) 
+								if( zones[ child->layer ] then
+									tconc( zones[ child->layer ] zone )
+								else
+									zones[ child->layer ] = tconc( nil zone )
+								)                   
+							)
+							(
+								"tee"
+								; a tee is only a point, there is nothing to draw
+							)
+							(
+								"via"				
+								foreach( layer layers
+									when( exportInnerLayers || layer == "ETCH/TOP" || layer == "ETCH/BOTTOM"
+										element = addVia( child layer ) 							
 
-                            element = addVia( child "ETCH/BOTTOM" )
-                            if( boundp( 'tracksBottom ) then
-                                tconc( tracksBottom element )
-                            else
-                                tracksBottom = tconc( nil element )
-                            )
-                        )
-                        (
-                            t
-                            printf( "%s was not considered ... \n" child->objType )
-                        )                        
-                    )
+										if( tracks[ layer ] then
+											tconc( tracks[ layer ] element )
+										else
+											tracks[ layer ] = tconc( nil element )
+										) 
+									)
+								)
+							)
+							(
+								t
+								printf( "%s was not considered ... \n" child->objType )
+							)                        
+						)
+					)
                 )                              
             )            
         )   
 
-        ; COPPER TOP
-        if( boundp( 'tracksTop )  then
-            tracksTop = strcat( 
-                "\"F\": [\n" 
-                addIndent( buildString( car( tracksTop ) ",\n" ) ) "\n" 
-                "]"
-            ) 
-        else
-            tracksTop = "\"F\": []"  
-        )
+		; Build strings		
+		foreach( layer layers
+			when( tracks[ layer ] 
 
-        if( boundp( 'zonesTop )  then
-            zonesTop = strcat( 
-                "\"F\": [\n" 
-                addIndent( buildString( car( zonesTop ) ",\n" ) ) "\n" 
-                "]"
-            ) 
-        else
-            zonesTop = "\"F\": []"  
-        )
+				; Set layer name
+				case( layer
+					(
+						"ETCH/TOP"
+						layerName = "F"
+					)
+					(
+						"ETCH/BOTTOM"
+						layerName = "B"
+					)
+					(
+						t
+						layerName = layer
+					)					
+				)
 
-        ; COPPER BOTTOM
-        if( boundp( 'tracksBottom )  then
-            tracksBottom = strcat( 
-                "\"B\": [\n" 
-                addIndent( buildString( car( tracksBottom ) ",\n" ) ) "\n" 
-                "]"
-            ) 
-        else
-            tracksBottom = "\"B\": []"  
-        )
+				tracks[ layer ] = strcat( 
+					"\"" layerName "\": [\n" 
+					addIndent( buildString( car( tracks[ layer ] ) ",\n" ) ) "\n" 
+					"]"
+				) 
 
-        if( boundp( 'zonesBottom )  then
-            zonesBottom = strcat( 
-                "\"B\": [\n" 
-                addIndent( buildString( car( zonesBottom ) ",\n" ) ) "\n" 
-                "]"
-            ) 
-        else
-            zonesBottom = "\"B\": []"  
-        )
+				zones[ layer ] = strcat( 
+					"\"" layerName "\": [\n" 
+					addIndent( buildString( car( zones[ layer ] ) ",\n" ) ) "\n" 
+					"]"
+				)
+			)
+		)
+
+		; Make list from table with the second element (key value) only
+		tracks = tableToList( tracks )
+		tracks = mapcar( lambda( ( layer ) cadr( layer ) )  tracks )
+
+		; Make list from table with the second element (key value) only
+		zones = tableToList( zones )
+		zones = mapcar( lambda( ( layer ) cadr( layer ) )  zones )		      
 
         ; track data in JSON format
         tracks = strcat( "\"tracks\": {\n"
-            addIndent( buildString( list( tracksTop tracksBottom ) ",\n" ) ) "\n"
+            addIndent( buildString( tracks ",\n" ) ) "\n"
             "}"
         )  
         
         ; track data in JSON format
         zones = strcat( "\"zones\": {\n"
-            addIndent( buildString( list( zonesTop zonesBottom ) ",\n" ) ) "\n"
+            addIndent( buildString( zones ",\n" ) ) "\n"
             "}"
         ) 
 
@@ -2163,7 +2133,7 @@ procedure( addNets()
     )
 )
 
-procedure( writeJsonFile( @key ( variant nil ) ( symbols 'unbound ) ( alternateParts 'unbound ) ( textsAsSvgPaths t ) ( excludeDNP nil ) ( pcbLinewidth nil ) ( fabricationLayerLinewidth nil ) ( silkscreenLayerLinewidth nil ) ( margin list( '( 0.0 0.0 ) '( 0.0 0.0 ) ) ) ( rev "" ) ( company "" ) )
+procedure( writeJsonFile( @key ( variant nil ) ( symbols 'unbound ) ( alternateParts 'unbound ) ( exportInnerLayers nil ) ( textsAsSvgPaths t ) ( excludeDNP nil ) ( pcbLinewidth nil ) ( fabricationLayerLinewidth nil ) ( silkscreenLayerLinewidth nil ) ( margin list( '( 0.0 0.0 ) '( 0.0 0.0 ) ) ) ( rev "" ) ( company "" ) )
     let( ( outPort pcbData )
 		; get cds version
 		cdsVersion = atof( axlGetVariableList("cdsversion") )
@@ -2211,7 +2181,7 @@ procedure( writeJsonFile( @key ( variant nil ) ( symbols 'unbound ) ( alternateP
                                     "\n"
                                 )
                             ) ",\n"
-                            addCopper() ",\n"
+                            addCopper( exportInnerLayers ) ",\n"
                             addNets() "\n" 
                             "},\n"                    
                             addComponentTable( symbols alternateParts cdsVersion )
@@ -2342,7 +2312,7 @@ let( (  (   variantFile "Variants.lst" )
     )       
 )
 
-procedure( exportJson( @key ( textsAsSvgPaths t ) ( excludeDNP nil ) ( pcbLinewidth nil ) ( fabricationLayerLinewidth nil ) ( silkscreenLayerLinewidth nil ) ( margin list( '( 0.0 0.0 ) '( 0.0 0.0 ) ) ) ( rev "" ) ( company "" ) )
+procedure( exportJson( @key ( exportInnerLayers nil ) ( textsAsSvgPaths t ) ( excludeDNP nil ) ( pcbLinewidth nil ) ( fabricationLayerLinewidth nil ) ( silkscreenLayerLinewidth nil ) ( margin list( '( 0.0 0.0 ) '( 0.0 0.0 ) ) ) ( rev "" ) ( company "" ) )
     let( ( ( variantFile "Variants.lst" ) variantInformation variantSymbolList alternateParts symbols )
         
         ; information
@@ -2366,7 +2336,7 @@ procedure( exportJson( @key ( textsAsSvgPaths t ) ( excludeDNP nil ) ( pcbLinewi
 
                     ; build symbol list
                     symbols = mapcar( lambda( ( refdes ) axlDBFindByName( 'refdes refdes )->symbol ) variantSymbolList[variant] )
-                    writeJsonFile( ?variant variant ?symbols symbols ?alternateParts alternateParts[variant] ?textsAsSvgPaths textsAsSvgPaths ?excludeDNP excludeDNP
+                    writeJsonFile( ?variant variant ?symbols symbols ?alternateParts alternateParts[variant] ?exportInnerLayers exportInnerLayers ?textsAsSvgPaths textsAsSvgPaths ?excludeDNP excludeDNP
                         ?pcbLinewidth pcbLinewidth ?fabricationLayerLinewidth fabricationLayerLinewidth ?silkscreenLayerLinewidth silkscreenLayerLinewidth ?margin margin
                         ?rev rev ?company company )                
                 )        
@@ -2376,7 +2346,7 @@ procedure( exportJson( @key ( textsAsSvgPaths t ) ( excludeDNP nil ) ( pcbLinewi
         else
             ; if no variant is available
             warn( "No variant.lst found, exporting entire design ... ")
-            writeJsonFile( ?textsAsSvgPaths textsAsSvgPaths
+            writeJsonFile( ?exportInnerLayers exportInnerLayers ?textsAsSvgPaths textsAsSvgPaths
                 ?pcbLinewidth pcbLinewidth ?fabricationLayerLinewidth fabricationLayerLinewidth ?silkscreenLayerLinewidth silkscreenLayerLinewidth ?margin margin
                 ?rev rev ?company company )        
         )  
