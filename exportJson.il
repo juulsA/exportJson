@@ -1971,8 +1971,7 @@ procedure( addSymbols( variantSymbolList textsAsSvgPaths excludeDNP fabricationL
 )
 
 procedure( addCopper( exportInnerLayers )
-    let( ( tracks zones dsn nets layers branches children segments track zone layerName ) 
-		
+    let( ( tracks zones dsn nets layers layer branches children segments track zone layerName ) 		
 		tracks = makeTable( "tracks" nil )
 		zones = makeTable( "zones" nil )
 		
@@ -2059,34 +2058,44 @@ procedure( addCopper( exportInnerLayers )
 
 		; Build strings		
 		foreach( layer layers
-			when( tracks[ layer ] 
 
-				; Set layer name
-				case( layer
-					(
-						"ETCH/TOP"
-						layerName = "F"
-					)
-					(
-						"ETCH/BOTTOM"
-						layerName = "B"
-					)
-					(
-						t
-						layerName = layer
-					)					
+			; Set layer name
+			case( layer
+				(
+					"ETCH/TOP"
+					layerName = "F"
+				)
+				(
+					"ETCH/BOTTOM"
+					layerName = "B"
+				)
+				(
+					t
+					layerName = layer
+				)					
+			)
+
+			when( exportInnerLayers || layer == "ETCH/TOP" || layer == "ETCH/BOTTOM"
+				; Add tracks
+				if( tracks[ layer ] then
+					tracks[ layer ] = strcat( 
+						"\"" layerName "\": [\n" 
+						addIndent( buildString( car( tracks[ layer ] ) ",\n" ) ) "\n" 
+						"]"
+					) 	
+				else
+					tracks[ layer ] = strcat( "\"" layerName "\": []" ) 				
 				)
 
-				tracks[ layer ] = strcat( 
-					"\"" layerName "\": [\n" 
-					addIndent( buildString( car( tracks[ layer ] ) ",\n" ) ) "\n" 
-					"]"
-				) 
-
-				zones[ layer ] = strcat( 
-					"\"" layerName "\": [\n" 
-					addIndent( buildString( car( zones[ layer ] ) ",\n" ) ) "\n" 
-					"]"
+				; Add zones
+				if( zones[ layer ] then
+					zones[ layer ] = strcat( 
+						"\"" layerName "\": [\n" 
+						addIndent( buildString( car( zones[ layer ] ) ",\n" ) ) "\n" 
+						"]"
+					)
+				else
+					zones[ layer ] = strcat( "\"" layerName "\": []" ) 
 				)
 			)
 		)
