@@ -333,6 +333,74 @@ procedure( addText( object @optional ( textType t ) )
     )
 )
 
+procedure( addCopperTexts( layer )
+	let( ( dsn texts text textBlock width pathLists pathList segments isFirst endPoint xStart yStart xEnd yEnd net element previousPoint (copperTexts 'unbound) )
+		dsn = axlDBGetDesign()
+		texts = dsn->text
+
+		foreach( text texts
+			
+			when( text->layer == layer
+				; get text parameters
+				textBlock = axlGetParam( strcat( "paramTextBlock:" text->textBlock ) )        
+				width = textBlock->photoWidth
+				
+				; get list if paths
+				pathLists = axlText2Lines( text )
+		
+				foreach( pathList pathLists
+					; iterate though paths
+					foreach( path pathList          
+						; get path segments
+						segments = axlPathGetPathSegs( path )
+		
+						foreach( segment segments
+							isFirst = ( lindex( segments segment ) == 1 )
+		
+							endPoint = segment->_endPoint
+							endPoint = list( xCoord( endPoint ) yCoord( endPoint ) )
+							
+							unless( isFirst
+								xStart = car( previousPoint )
+								yStart = -cadr( previousPoint ) ; multiply by -1, s. ibom y convention
+								
+								xEnd = car( endPoint )        
+								yEnd = -cadr( endPoint ) ; multiply by -1, s. ibom y convention
+
+								; dummy net name
+								net = ""
+
+								element = strcat( 
+									"{\n\t\"net\": \"" net "\",\n"         
+									"\t\"start\": [" sprintf( nil "%f" xStart ) ", " sprintf( nil "%f" yStart ) "],\n"
+									"\t\"end\": [" sprintf( nil "%f" xEnd ) ", " sprintf( nil "%f" yEnd ) "],\n"
+									"\t\"width\": " sprintf( nil "%f" width ) "\n"    
+									"}"        
+								)
+
+								if( boundp( 'copperTexts ) then
+									tconc( copperTexts element )
+								else
+									copperTexts = tconc( nil element )
+								) 
+							)
+
+							previousPoint = endPoint
+						)               
+					)                   
+				)
+			)
+		)		
+
+		; return value
+		if( boundp( 'copperTexts) then
+			car( copperTexts )
+		else
+			nil
+		)
+	)
+)
+
 procedure( addVia( via layer )
     let( ( xy extents startEnd element ) 
         xy = via->xy
@@ -2055,6 +2123,18 @@ procedure( addCopper( exportInnerLayers )
                 )                              
             )            
         )   
+
+		; Append texts		
+		foreach( layer layers
+			when( exportInnerLayers || layer == "ETCH/TOP" || layer == "ETCH/BOTTOM"
+				element = addCopperTexts( layer )
+
+				; If element is not nil, append it to list
+				when( element
+					lconc( tracks[ layer ] element )
+				)
+			)
+		)			
 
 		; Build strings		
 		foreach( layer layers
