@@ -401,12 +401,15 @@ procedure( addCopperTexts( layer )
 	)
 )
 
-procedure( addVia( via layer )
+procedure( addVia( via layer renderViaHole )
     let( ( xy extents startEnd element ) 
         xy = via->xy
+		
+		padstack = axlLoadPadstack( via->name )
+		drillSize = padstack->drillDiameter
 
         pad = axlDBGetPad( via layer "REGULAR" ) 
-        extents = pad->bBox
+        extents = pad->bBox       
 
         ; calculate the pad diameter
         width = abs( xCoord( cadr( extents ) ) - xCoord( car( extents ) ) )        
@@ -418,9 +421,21 @@ procedure( addVia( via layer )
             "\t\"net\": \"" via->net->name "\",\n" 
             "\t\"start\": " startEnd ",\n"
             "\t\"end\": " startEnd ",\n"
-            "\t\"width\": " sprintf( nil "%f" width ) "\n"
-            "}"            
+            "\t\"width\": " sprintf( nil "%f" width )    
         )         
+
+		if( renderViaHole then
+			element = strcat( 
+				element 
+				",\n\t\"drillsize\": " sprintf( nil "%f" drillSize ) "\n"
+				"}"
+			)
+		else
+			element = strcat( 
+				element "\n"
+			"}"
+			)
+		)
     )  
 )
 
@@ -2038,7 +2053,7 @@ procedure( addSymbols( variantSymbolList textsAsSvgPaths excludeDNP fabricationL
     )
 )
 
-procedure( addCopper( exportInnerLayers )
+procedure( addCopper( exportInnerLayers renderViaHoles )
     let( ( tracks zones dsn nets layers layer branches children segments track zone layerName ) 		
 		tracks = makeTable( "tracks" nil )
 		zones = makeTable( "zones" nil )
@@ -2104,7 +2119,7 @@ procedure( addCopper( exportInnerLayers )
 								"via"				
 								foreach( layer layers
 									when( exportInnerLayers || layer == "ETCH/TOP" || layer == "ETCH/BOTTOM"
-										element = addVia( child layer ) 							
+										element = addVia( child layer renderViaHoles ) 							
 
 										if( tracks[ layer ] then
 											tconc( tracks[ layer ] element )
@@ -2222,7 +2237,7 @@ procedure( addNets()
     )
 )
 
-procedure( writeJsonFile( @key ( variant nil ) ( symbols 'unbound ) ( alternateParts 'unbound ) ( exportInnerLayers nil ) ( textsAsSvgPaths t ) ( excludeDNP nil ) ( pcbLinewidth nil ) ( fabricationLayerLinewidth nil ) ( silkscreenLayerLinewidth nil ) ( margin list( '( 0.0 0.0 ) '( 0.0 0.0 ) ) ) ( rev "" ) ( company "" ) )
+procedure( writeJsonFile( @key ( variant nil ) ( symbols 'unbound ) ( alternateParts 'unbound ) ( exportInnerLayers nil ) ( renderViaHoles nil ) ( textsAsSvgPaths t ) ( excludeDNP nil ) ( pcbLinewidth nil ) ( fabricationLayerLinewidth nil ) ( silkscreenLayerLinewidth nil ) ( margin list( '( 0.0 0.0 ) '( 0.0 0.0 ) ) ) ( rev "" ) ( company "" ) )
     let( ( outPort pcbData )
 		; get cds version
 		cdsVersion = atof( axlGetVariableList("cdsversion") )
@@ -2270,7 +2285,7 @@ procedure( writeJsonFile( @key ( variant nil ) ( symbols 'unbound ) ( alternateP
                                     "\n"
                                 )
                             ) ",\n"
-                            addCopper( exportInnerLayers ) ",\n"
+                            addCopper( exportInnerLayers renderViaHoles ) ",\n"
                             addNets() "\n" 
                             "},\n"                    
                             addComponentTable( symbols alternateParts cdsVersion )
@@ -2401,7 +2416,7 @@ let( (  (   variantFile "Variants.lst" )
     )       
 )
 
-procedure( exportJson( @key ( exportInnerLayers nil ) ( textsAsSvgPaths t ) ( excludeDNP nil ) ( pcbLinewidth nil ) ( fabricationLayerLinewidth nil ) ( silkscreenLayerLinewidth nil ) ( margin list( '( 0.0 0.0 ) '( 0.0 0.0 ) ) ) ( rev "" ) ( company "" ) )
+procedure( exportJson( @key ( exportInnerLayers nil ) ( renderViaHoles nil ) ( textsAsSvgPaths t ) ( excludeDNP nil ) ( pcbLinewidth nil ) ( fabricationLayerLinewidth nil ) ( silkscreenLayerLinewidth nil ) ( margin list( '( 0.0 0.0 ) '( 0.0 0.0 ) ) ) ( rev "" ) ( company "" ) )
     let( ( ( variantFile "Variants.lst" ) variantInformation variantSymbolList alternateParts symbols )
         
         ; information
@@ -2425,7 +2440,7 @@ procedure( exportJson( @key ( exportInnerLayers nil ) ( textsAsSvgPaths t ) ( ex
 
                     ; build symbol list
                     symbols = mapcar( lambda( ( refdes ) axlDBFindByName( 'refdes refdes )->symbol ) variantSymbolList[variant] )
-                    writeJsonFile( ?variant variant ?symbols symbols ?alternateParts alternateParts[variant] ?exportInnerLayers exportInnerLayers ?textsAsSvgPaths textsAsSvgPaths ?excludeDNP excludeDNP
+                    writeJsonFile( ?variant variant ?symbols symbols ?alternateParts alternateParts[variant] ?exportInnerLayers exportInnerLayers ?renderViaHoles renderViaHoles ?textsAsSvgPaths textsAsSvgPaths ?excludeDNP excludeDNP
                         ?pcbLinewidth pcbLinewidth ?fabricationLayerLinewidth fabricationLayerLinewidth ?silkscreenLayerLinewidth silkscreenLayerLinewidth ?margin margin
                         ?rev rev ?company company )                
                 )        
@@ -2435,7 +2450,7 @@ procedure( exportJson( @key ( exportInnerLayers nil ) ( textsAsSvgPaths t ) ( ex
         else
             ; if no variant is available
             warn( "No variant.lst found, exporting entire design ... ")
-            writeJsonFile( ?exportInnerLayers exportInnerLayers ?textsAsSvgPaths textsAsSvgPaths
+            writeJsonFile( ?exportInnerLayers exportInnerLayers ?renderViaHoles renderViaHoles ?textsAsSvgPaths textsAsSvgPaths
                 ?pcbLinewidth pcbLinewidth ?fabricationLayerLinewidth fabricationLayerLinewidth ?silkscreenLayerLinewidth silkscreenLayerLinewidth ?margin margin
                 ?rev rev ?company company )        
         )  
