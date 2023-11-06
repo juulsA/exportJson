@@ -401,6 +401,50 @@ procedure( addCopperTexts( layer )
 	)
 )
 
+procedure( addThieving( layer )
+	let( ( (thieving 'unbound) dsn groups members pads svgpath elem )
+		dsn = axlDBGetDesign()
+		groups = dsn->groups
+
+		foreach( group groups
+			when( group->type == "THIEVING_GROUP"
+				members = group->groupMembers
+
+				foreach( member members
+					pads = member->pads
+
+					foreach( pad pads
+						when( pad->figure && pad->layer == layer
+							svgpath = figureToSvgPath( pad->figure 0.0 0.0 0.0)
+
+							; render thieving as a zone
+							elem = strcat(
+								"{\n"
+								"\t\"svgpath\": \"" svgpath "\",\n"  
+								"\t\"fillrule\": \"evenodd\",\n"
+								"\t\"net\": \"\"\n"
+								"}"
+							)        
+
+							if( boundp( 'thieving ) then 
+								tconc( thieving elem )
+							else
+								thieving = tconc( nil elem )            
+							)								
+						)
+					)
+					; extents = pad->bBox
+				)			
+			)		
+		)
+		if( boundp( 'thieving) then 
+			thieving
+		else
+			nil
+		)
+	)
+)
+
 procedure( addVia( via layer renderViaHole )
     let( ( xy extents startEnd element ) 
         xy = via->xy
@@ -2054,7 +2098,7 @@ procedure( addSymbols( variantSymbolList textsAsSvgPaths excludeDNP fabricationL
 )
 
 procedure( addCopper( exportInnerLayers renderViaHoles )
-    let( ( tracks zones dsn nets layers layer branches children segments track zone layerName ) 		
+    let( ( tracks zones dsn nets layers layer branches children segments track zone element thieving layerName ) 		
 		tracks = makeTable( "tracks" nil )
 		zones = makeTable( "zones" nil )
 		
@@ -2149,7 +2193,23 @@ procedure( addCopper( exportInnerLayers renderViaHoles )
 					lconc( tracks[ layer ] element )
 				)
 			)
-		)			
+		)
+		
+		; Add thieving	
+		foreach( layer layers
+			when( exportInnerLayers || layer == "ETCH/TOP" || layer == "ETCH/BOTTOM"
+
+				thieving = addThieving( layer )
+				
+				when( dtpr( thieving )
+					if( zones[ layer ] then
+						lconc( zones[ layer ] car( thieving ) )
+					else
+						zones[ layer ] = lconc( nil car( thieving ) )
+					)                		
+				)
+			)
+		)
 
 		; Build strings		
 		foreach( layer layers
