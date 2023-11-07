@@ -239,7 +239,8 @@ procedure( parseSegment( segment width @optional ( isEtch nil ) )
             )
             (
                 "arc"
-                if( segment->isCirle then
+				; Sometimes a shape is a circle, but isCircle is nil ... why?!
+                if( segment->isCirle || car( segment->startEnd ) == cadr( segment->startEnd ) then
                     element = addCircle( segment width )
                 else
                     element = addArc( segment width isEtch )
@@ -808,7 +809,7 @@ procedure( createZone( zone )
 )
 
 procedure( addBoardGeometry( pcbLinewidth margin cdsVersion )
-    let( ( ( edges 'unbound ) dsn outline segments extents xStart yStart xEnd yEnd bBox element boardGeometry )
+    let( ( ( edges 'unbound ) dsn outline segments extents xStart yStart xEnd yEnd bBox element cutouts boardGeometry )
 
 		; check version, because of different layer mapping
 		if( cdsVersion >= 17.4 then
@@ -854,22 +855,25 @@ procedure( addBoardGeometry( pcbLinewidth margin cdsVersion )
 
 		when( cdsVersion >= 17.4
 			; add cutout to edges list
-			cutout = car( axlDBGetShapes( "BOARD GEOMETRY/CUTOUT" ) )
-			segments = cutout->segments
+			cutouts = axlDBGetShapes( "BOARD GEOMETRY/CUTOUT" )
 
-			foreach( segment segments
-				; parse segment
-				if( pcbLinewidth then 
-					element = parseSegment( segment pcbLinewidth )  
-				else
-					element = parseSegment( segment segment->width )  
-				)
-		
-				if( boundp( 'edges ) then
-					tconc( edges element )
-				else
-					edges = tconc( nil element )
-				)      
+			foreach( cutout cutouts
+				segments = cutout->segments
+
+				foreach( segment segments
+					; parse segment
+					if( pcbLinewidth then 
+						element = parseSegment( segment pcbLinewidth )  
+					else
+						element = parseSegment( segment segment->width )  
+					)
+			
+					if( boundp( 'edges ) then
+						tconc( edges element )
+					else
+						edges = tconc( nil element )
+					)      
+				)	
 			)
 		)
 
