@@ -238,9 +238,9 @@ procedure( parseSegment( segment width @optional ( isEtch nil ) )
                 element = addLine( segment width isEtch )        
             )
             (
-                "arc"
-				; Sometimes a shape is a circle, but isCircle is nil ... why?!
-                if( segment->isCirle || car( segment->startEnd ) == cadr( segment->startEnd ) then
+                "arc"				
+				; Typo?! Sometimes a shape is a circle, but isCircle is nil ... why?!
+                if( segment->isCircle then ; || car( segment->startEnd ) == cadr( segment->startEnd ) then
                     element = addCircle( segment width )
                 else
                     element = addArc( segment width isEtch )
