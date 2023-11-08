@@ -63,7 +63,7 @@ procedure( addIndent( string @optional ( tabs 1 ) )
 ; }
 ; ```
 
-procedure( addLine( segment width @optional ( isEtch nil ) )
+procedure( addLine( segment width @optional ( isEtch nil ) ( netName nil) )
     let( ( extents xStart yStart xEnd yEnd element )    
         extents = segment->startEnd
 
@@ -74,8 +74,13 @@ procedure( addLine( segment width @optional ( isEtch nil ) )
         yEnd = -cadadr( extents ) ; multiply by -1, s. ibom y convention
 
         if( isEtch then
+
+			unless( netName
+				netName = segment->net->name
+			)
+			
             element = strcat(
-                "{\n\t\"net\": \"" segment->net->name "\",\n"
+                "{\n\t\"net\": \"" netName "\",\n"
             )
 
             width = segment->width            
@@ -141,7 +146,7 @@ procedure( addCircle( segment width )
 ; }
 ; ```
 
-procedure( addArc( segment width @optional ( isEtch nil ) )
+procedure( addArc( segment width @optional ( isEtch nil ) ( netName nil ) )
     let( ( xy xCenter yCenter radius extents xStart yStart xEnd yEnd cw angle1 angle2 startAngle endAngle element )
         xy = segment->xy
         xCenter = car( xy )
@@ -205,8 +210,11 @@ procedure( addArc( segment width @optional ( isEtch nil ) )
         )
 
         if( isEtch then
+			unless( netName 
+				netName = segment->net->name
+			)
             element = strcat(
-                "{\n\t\"net\": \"" segment->net->name "\",\n"
+                "{\n\t\"net\": \"" netName "\",\n"
                 "\t\"center\": [" sprintf( nil "%f" xCenter ) ", " sprintf( nil "%f" yCenter ) "],\n"
             )
 
@@ -230,12 +238,12 @@ procedure( addArc( segment width @optional ( isEtch nil ) )
     )
 )
 
-procedure( parseSegment( segment width @optional ( isEtch nil ) )
+procedure( parseSegment( segment width @optional ( isEtch nil ) ( netName nil ) )
     let( ( element )
         case( segment->objType
             (
                 "line"
-                element = addLine( segment width isEtch )        
+                element = addLine( segment width isEtch netName )        
             )
             (
                 "arc"				
@@ -243,7 +251,7 @@ procedure( parseSegment( segment width @optional ( isEtch nil ) )
                 if( segment->isCircle then ; || car( segment->startEnd ) == cadr( segment->startEnd ) then
                     element = addCircle( segment width )
                 else
-                    element = addArc( segment width isEtch )
+				element = addArc( segment width isEtch netName )
                 )
             )
             (
@@ -396,6 +404,39 @@ procedure( addCopperTexts( layer )
 		; return value
 		if( boundp( 'copperTexts) then
 			car( copperTexts )
+		else
+			nil
+		)
+	)
+)
+
+procedure( addNoNetCopper( layer )
+	let( ( ( tracks 'unbound ) lines line segments segment elem )
+		axlClearSelSet()
+		axlSetFindFilter(?enabled '("noall" "lines") ?onButtons '("lines"))
+		axlAddSelectAll()
+		lines = axlGetSelSet()
+
+		foreach( line lines
+			when( line->layer == layer
+				segments = line->segments
+
+				foreach( segment segments				
+					elem = parseSegment( segment segment->width t "" ) 	
+					if( boundp( 'tracks ) then 
+						tconc( tracks elem )
+					else
+						tracks = tconc( nil elem )            
+					)			
+				)	
+			)		
+		)
+
+		axlClearSelSet()
+		axlSetFindFilter(?enabled '("noall" "alltypes") ?onButtons '("noall" "alltypes"))
+
+		if( boundp( 'tracks) then 
+			tracks
 		else
 			nil
 		)
@@ -2217,6 +2258,21 @@ procedure( addCopper( exportInnerLayers renderViaHoles )
 						lconc( zones[ layer ] car( thieving ) )
 					else
 						zones[ layer ] = lconc( nil car( thieving ) )
+					)                		
+				)
+			)
+		)
+
+		; Add non net tracks
+		foreach( layer layers
+			when( exportInnerLayers || layer == "ETCH/TOP" || layer == "ETCH/BOTTOM"
+				elem = addNoNetCopper( layer )
+
+				when( dtpr(  elem )
+					if( tracks[ layer ] then
+						lconc( tracks[ layer ] car( elem ) )
+					else
+						tracks[ layer ] = lconc( nil car( elem ) )
 					)                		
 				)
 			)
