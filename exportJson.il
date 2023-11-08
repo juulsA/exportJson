@@ -1001,10 +1001,17 @@ procedure( figureToSvgPath( figure xOffset yOffset rotation )
                 yPrevEndpoint = yCoord( prevEndpoint ) * -1 - yOffset
                 
                 ; because the y-axis is inverted, the vector needs to be rotated in direction of the rotation to make rotation undone
-                startPoint = rotateVector( list( xPrevEndpoint yPrevEndpoint ) rotation )               
+                startPoint = rotateVector( list( xPrevEndpoint yPrevEndpoint ) rotation )      
+				
+				; is circle?
+				if( startPoint == endPoint then
+					isCircle = t
+				else
+					isCirle = nil
+				)
 
                 ;arcToSvgPath( isFirst xy startEnd isClockwise @optional ( radius nil ) ( isCircle nil ) )  
-                path = arcToSvgPath( isFirst arcCenter list( startPoint endPoint ) isClockwise )
+                path = arcToSvgPath( isFirst arcCenter list( startPoint endPoint ) isClockwise nil isCircle )
 
                 ; append to list
                 if( boundp( 'paths ) then
