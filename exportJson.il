@@ -850,22 +850,23 @@ procedure( createZone( zone )
 )
 
 procedure( addBoardGeometry( pcbLinewidth margin cdsVersion )
-    let( ( ( edges 'unbound ) dsn outline segments extents xStart yStart xEnd yEnd bBox element cutouts boardGeometry )
+    let( ( ( edges 'unbound ) dsn outline ( segments nil ) extents xStart yStart xEnd yEnd bBox element cutouts boardGeometry )
 
 		; check version, because of different layer mapping
 		if( cdsVersion >= 17.4 then
 			dsn = axlDBGetDesign()
 			outline = dsn->designOutline
-		else
-			outline = car( axlDBGetShapes( "Board Geometry/Outline" ) )
+			segments = outline->segments
+		else			
+			foreach( outline axlDBGetShapes( "Board Geometry/Outline" ) 
+				segments = nconc( segments outline->segments )				
+			)
 		)
 
 		; abort json generation
-		unless( outline 
+		unless( segments
 			error( "No board geometry found ..." )						
-		)
-			
-		segments = outline->segments
+		)	
 
         extents =  axlDBGetExtents( segments nil )
 
