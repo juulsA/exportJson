@@ -1007,7 +1007,7 @@ procedure( figureToSvgPath( figure xOffset yOffset rotation )
 				if( startPoint == endPoint then
 					isCircle = t
 				else
-					isCirle = nil
+					isCircle = nil
 				)
 
                 ;arcToSvgPath( isFirst xy startEnd isClockwise @optional ( radius nil ) ( isCircle nil ) )  
