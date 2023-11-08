@@ -859,6 +859,11 @@ procedure( addBoardGeometry( pcbLinewidth margin cdsVersion )
 		else
 			outline = car( axlDBGetShapes( "Board Geometry/Outline" ) )
 		)
+
+		; abort json generation
+		unless( outline 
+			error( "No board geometry found ..." )						
+		)
 			
 		segments = outline->segments
 
