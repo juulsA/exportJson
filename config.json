@@ -1,0 +1,34 @@
+{
+    "silkscreen": {
+        "F": [
+            "Board Geometry/Silkscreen_Top",
+            "Package Geometry/Silkscreen_Top"
+        ],
+        "B": [
+            "Board Geometry/Silkscreen_Bottom",
+            "Package Geometry/Silkscreen_Bottom"
+        ]
+    },
+    "fabrication": {
+        "F": [
+            "Board Geometry/Assembly_Top",
+            "Package Geometry/Assembly_Top"
+        ],
+        "B": [
+            "Board Geometry/Assembly_Bottom",
+			"Package Geometry/Assembly_Bottom"
+        ]
+    },
+    "settings": {
+        "exportInnerLayer": "nil",
+        "renderViaHoles": "nil",
+        "textAsSvgPaths": "t",
+        "excludeDNP": "nil",
+        "pcbLineWidth": 0.1,
+        "fabricationLayerLineWidth": 0.1,
+        "marginTop": 10,
+        "marginRight": 10,
+        "marginBottom": 10,
+        "marginLeft": 10
+    }
+}
