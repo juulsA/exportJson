@@ -7,6 +7,11 @@ procedure( jsonDecode( file )
 
         keywordIdentifier = pcreCompile( "^\".+(\":)" )
         newline = pcreCompile( "\\n" )
+
+        ; Type identifier
+        boolTrue = pcreCompile( "(^true$)" )
+        boolFalse = pcreCompile( "(^false$)" )
+        number = pcreCompile( "(^[0-9]*$)|(^[0-9]*[.][0-9]+$)" )
         
         tmpTable = makeTable( "json" nil )
 
@@ -24,13 +29,10 @@ procedure( jsonDecode( file )
 
         ; Read file
         while( gets(line prt)
-            ; char = getc(prt) 
-
+            ; Replace
             line = pcreReplace( indent line "" 0 )
             line = pcreReplace( colon line "\":\n" 0 )
             line = pcreReplace( comma line "\n,\n" 0 )
-            
-            ; print( line )
 
             subStrings = parseString( line "\n" )
 
@@ -48,7 +50,6 @@ procedure( jsonDecode( file )
                                     error()
                                 )
                             )
-
 
                             name = car( name )
                             name = substring( name 2 strlen( name ) - 3)                       
@@ -77,22 +78,31 @@ procedure( jsonDecode( file )
                                     ;  remove last element
                                     currentKey = lconc( nil reverse( cdr( reverse( car( currentKey ) ) ) ) )
                                     openCurlyBraces = openCurlyBraces - 1
-                                    print( "closed curly brace" )
                                 )
                                 (
                                     "["
                                     state = "awaitArray"
-                                    ; print( "array" )
                                 )
                                 
                                 (
                                     ","
                                     state = "awaitObject"
-                                    ; print( "next" )
                                 )
                                 (
                                     t
                                     ; Set value
+                                    if( pcreMatchp( number subString ) then
+                                        subString = atof( subString )      
+                                    else                              
+                                        if( pcreMatchp( boolTrue subString ) then
+                                            subString = t
+                                        else
+                                            when( pcreMatchp( boolFalse subString)
+                                                subString = nil                                            
+                                            )
+                                        )
+                                    )
+
                                     cmd = strcat( "json->" buildString( car( currentKey ) "->" ) "=subString" ) 
                                     evalstring( cmd )    
                                     state = "awaitTypeOrValue"
@@ -103,10 +113,9 @@ procedure( jsonDecode( file )
                         )    
                         (
                             "awaitArray"
-                            case( subString                                
+                            case( subString
                                 ( 
                                     ","
-                                    ; print("next")
                                 )
                                 (
                                     "]"
@@ -119,12 +128,23 @@ procedure( jsonDecode( file )
 
                                     tmpArray = nil
                                     ;  remove last element
-                                    currentKey = lconc( nil reverse( cdr( reverse( car( currentKey ) ) ) ) )                                    
-                                    ; print("closing")                                    
+                                    currentKey = lconc( nil reverse( cdr( reverse( car( currentKey ) ) ) ) )
                                 )
                                 (
                                     t
                                     ; make List
+                                    if( pcreMatchp( number subString ) then
+                                        subString = atof( subString )      
+                                    else                              
+                                        if( pcreMatchp( boolTrue subString ) then
+                                            subString = t
+                                        else
+                                            when( pcreMatchp( boolFalse subString)
+                                                subString = nil                                            
+                                            )
+                                        )
+                                    )
+
                                     tmpArray = tconc( tmpArray subString )
                                 )                                
                             )
@@ -140,6 +160,9 @@ procedure( jsonDecode( file )
                     )
                 )                
             )
+        )
+        when( openCurlyBraces != 0 || openBrackets != 0 
+            error( "unclosed objects" )
         )
         json
     )

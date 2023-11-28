@@ -20,10 +20,10 @@
         ]
     },
     "settings": {
-        "exportInnerLayer": "nil",
-        "renderViaHoles": "nil",
-        "textAsSvgPaths": "t",
-        "excludeDNP": "nil",
+        "exportInnerLayer": false,
+        "renderViaHoles": false,
+        "textAsSvgPaths": true,
+        "excludeDNP": false,
         "pcbLineWidth": 0.1,
         "fabricationLayerLineWidth": 0.1,
         "marginTop": 10,
