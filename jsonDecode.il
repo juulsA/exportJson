@@ -97,8 +97,10 @@ procedure( jsonDecode( file )
                                         if( pcreMatchp( boolTrue subString ) then
                                             subString = t
                                         else
-                                            when( pcreMatchp( boolFalse subString)
-                                                subString = nil                                            
+                                            if( pcreMatchp( boolFalse subString) then
+                                                subString = nil
+                                            else
+                                                subString = substring( subString 2 strlen( subString ) - 2 )
                                             )
                                         )
                                     )
@@ -139,8 +141,10 @@ procedure( jsonDecode( file )
                                         if( pcreMatchp( boolTrue subString ) then
                                             subString = t
                                         else
-                                            when( pcreMatchp( boolFalse subString)
-                                                subString = nil                                            
+                                            if( pcreMatchp( boolFalse subString) then
+                                                subString = nil
+                                            else
+                                                subString = substring( subString 2 strlen( subString ) - 2 )
                                             )
                                         )
                                     )
