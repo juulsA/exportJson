@@ -10,14 +10,16 @@
             "refdes": "REF DES/SILKSCREEN_TOP",
             "value": "COMPONENT VALUE/SILKSCREEN_TOP"
         },
-        "B": [
-            "BOARD GEOMETRY/SILKSCREEN_BOTTOM",
-            "PACKAGE GEOMETRY/SILKSCREEN_BOTTOM",
-            "REF DES/SILKSCREEN_BOTTOM",
-            "COMPONENT VALUE/SILKSCREEN_BOTTOM"
-        ],
+        "B": {
+            "layers": [
+                "BOARD GEOMETRY/SILKSCREEN_BOTTOM",
+                "PACKAGE GEOMETRY/SILKSCREEN_BOTTOM",
+                "REF DES/SILKSCREEN_BOTTOM",
+                "COMPONENT VALUE/SILKSCREEN_BOTTOM"
+            ],
         "refdes": "REF DES/SILKSCREEN_BOTTOM",
         "value": "COMPONENT VALUE/SILKSCREEN_BOTTOM"
+        }
     },
     "fabrication": {
         "F": {
