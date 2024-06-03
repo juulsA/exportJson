@@ -930,10 +930,10 @@ procedure( addBoardGeometry( pcbLinewidth margin cdsVersion )
         extents =  axlDBGetExtents( segments nil )
 
         xStart = caar( extents ) - caar( margin )
-        yStart = -cadar( extents ) + cadar( margin ) ;multiply by -1, s. ibom y convention
+        yStart = -cadar( extents ) - cadar( margin ) ;multiply by -1, s. ibom y convention
         
         xEnd = caadr( extents ) + caadr( margin )        
-        yEnd = -cadadr( extents ) - cadadr( margin ) ; multiply by -1, s. ibom y convention
+        yEnd = -cadadr( extents ) + cadadr( margin ) ; multiply by -1, s. ibom y convention
 
         bBox = strcat( 
             "{\n"
@@ -2692,9 +2692,118 @@ let( (  (   variantFile "Variants.lst" )
     )       
 )
 
+procedure( createDefaultConfig( fileName )
+    let( ( config ) 
+        config = "{\n
+            \"silkscreen\": {\n
+                \"F\": {\n
+                    \"layers\": [\n
+                        \"BOARD GEOMETRY/SILKSCREEN_TOP\",\n
+                        \"PACKAGE GEOMETRY/SILKSCREEN_TOP\",\n
+                        \"REF DES/SILKSCREEN_TOP\",\n
+                        \"COMPONENT VALUE/SILKSCREEN_TOP\"\n
+                    ],\n
+                    \"refdes\": \"REF DES/SILKSCREEN_TOP\",\n
+                    \"value\": \"COMPONENT VALUE/SILKSCREEN_TOP\"\n
+                },\n
+                \"B\": {\n
+                    \"layers\": [\n
+                        \"BOARD GEOMETRY/SILKSCREEN_BOTTOM\",\n
+                        \"PACKAGE GEOMETRY/SILKSCREEN_BOTTOM\",\n
+                        \"REF DES/SILKSCREEN_BOTTOM\",\n
+                        \"COMPONENT VALUE/SILKSCREEN_BOTTOM\"\n
+                    ],\n
+                \"refdes\": \"REF DES/SILKSCREEN_BOTTOM\",\n
+                \"value\": \"COMPONENT VALUE/SILKSCREEN_BOTTOM\"\n
+                }\n
+            },\n
+            \"fabrication\": {\n
+                \"F\": {\n
+                    \"layers\": [\n
+                        \"BOARD GEOMETRY/ASSEMBLY_TOP\",\n
+                        \"PACKAGE GEOMETRY/ASSEMBLY_TOP\",\n
+                        \"REF DES/ASSEMBLY_TOP\",\n
+                        \"COMPONENT VALUE/ASSEMBLY_TOP\"\n
+                    ],\n
+                    \"refdes\": \"REF DES/ASSEMBLY_TOP\",\n
+                    \"value\": \"COMPONENT VALUE/ASSEMBLY_TOP\"\n
+                },\n
+                \"B\": {\n
+                    \"layers\": [\n
+                        \"BOARD GEOMETRY/ASSEMBLY_BOTTOM\",\n
+                        \"PACKAGE GEOMETRY/ASSEMBLY_BOTTOM\",\n
+                        \"REF DES/ASSEMBLY_BOTTOM\",\n
+                        \"COMPONENT VALUE/ASSEMBLY_BOTTOM\"\n
+                    ],\n
+                    \"refdes\": \"REF DES/ASSEMBLY_BOTTOM\",\n
+                    \"value\": \"COMPONENT VALUE/ASSEMBLY_BOTTOM\"\n
+                }\n
+            },\n
+            \"settings\": {\n
+                \"exportInnerLayer\": false,\n
+                \"renderViaHoles\": false,\n
+                \"textAsSvgPaths\": true,\n
+                \"excludeDNP\": false,\n
+                \"pcbLinewidth\": \"design\",\n
+                \"fabricationLayerLinewidth\": \"design\",\n
+                \"silkscreenLayerLinewidth\": \"design\",\n
+                \"marginTop\": 0,\n
+                \"marginRight\": 0,\n
+                \"marginBottom\": 0,\n
+                \"marginLeft\": 0\n
+            }\n
+        }"
+
+        outPort = outfile( fileName )
+        fprintf( outPort config )
+        close( outPort )
+    )
+)
+
 procedure( exportJson( @key ( exportInnerLayers nil ) ( renderViaHoles nil ) ( textsAsSvgPaths t ) ( excludeDNP nil ) ( pcbLinewidth nil ) ( fabricationLayerLinewidth nil ) ( silkscreenLayerLinewidth nil ) ( margin list( '( 0.0 0.0 ) '( 0.0 0.0 ) ) ) ( rev "" ) ( company "" ) ( config nil ) )
     let( ( ( variantFile "Variants.lst" ) variantInformation variantSymbolList alternateParts symbols )
-        
+
+        if( config then
+            config = jsonDecode( config )
+            settings = config->settings
+
+            exportInnerLayers = settings->exportInnerLayers
+            renderViaHoles = settings->renderViaHoles
+            textsAsSvgPaths = settings->renderViaHoles    
+            excludeDNP = settings->excludeDNP
+            pcbLinewidth = settings->pcbLinewidth
+
+            when(pcbLinewidth == "design"
+                pcbLinewidth = nil
+            )
+
+            ; use design values
+            fabricationLayerLinewidth = settings->fabricationLayerLinewidth
+
+            when(fabricationLayerLinewidth == "design"
+                fabricationLayerLinewidth = nil
+            )
+
+            ; use design values
+            silkscreenLayerLinewidth = settings->silkscreenLayerLinewidth
+
+            ; use design values
+            when(silkscreenLayerLinewidth == "design"
+                silkscreenLayerLinewidth = nil
+            )
+
+            marginTop = settings->marginTop
+            marginRight = settings->marginRight
+            marginBottom = settings->marginBottom
+            marginLeft = settings->marginLeft
+
+            margin = list( list(marginLeft marginBottom) list(marginRight marginTop) )
+        else
+            ; create default config for default layer mapping
+            createDefaultConfig( "ibomExportDefaultConfig.json" )
+            config = jsonDecode( "ibomExportDefaultConfig.json" )
+        )
+
         ; information
         unless( textsAsSvgPaths
             warn( "External font_data is used, text may look different ... " )
@@ -2728,12 +2837,7 @@ procedure( exportJson( @key ( exportInnerLayers nil ) ( renderViaHoles nil ) ( t
             warn( "No variant.lst found, exporting entire design ... ")
             writeJsonFile( ?exportInnerLayers exportInnerLayers ?renderViaHoles renderViaHoles ?textsAsSvgPaths textsAsSvgPaths
                 ?pcbLinewidth pcbLinewidth ?fabricationLayerLinewidth fabricationLayerLinewidth ?silkscreenLayerLinewidth silkscreenLayerLinewidth ?margin margin
-                ?rev rev ?company company ?layerMapping config )        
+                ?rev rev ?company company ?layerMapping config )
         )  
     )
-)
-
-procedure( testExport()
-    json = jsonDecode( "K:\\home\\pcbenv\\config.json" )
-    exportJson( ?config json )
 )

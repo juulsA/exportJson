@@ -48,11 +48,12 @@
         "renderViaHoles": false,
         "textAsSvgPaths": true,
         "excludeDNP": false,
-        "pcbLineWidth": 0.1,
-        "fabricationLayerLineWidth": 0.1,
-        "marginTop": 10,
-        "marginRight": 10,
-        "marginBottom": 10,
-        "marginLeft": 10
+        "pcbLinewidth": "design",
+        "fabricationLayerLinewidth": "design",
+        "silkscreenLayerLinewidth": "design",
+        "marginTop": 0.0,
+        "marginRight":0.0,
+        "marginBottom": 0.0,
+        "marginLeft": 0.0
     }
 }
