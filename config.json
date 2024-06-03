@@ -1,0 +1,59 @@
+{
+    "silkscreen": {
+        "F": {
+            "layers": [
+                "BOARD GEOMETRY/SILKSCREEN_TOP",
+                "PACKAGE GEOMETRY/SILKSCREEN_TOP",
+                "REF DES/SILKSCREEN_TOP",
+                "COMPONENT VALUE/SILKSCREEN_TOP"
+            ],
+            "refdes": "REF DES/SILKSCREEN_TOP",
+            "value": "COMPONENT VALUE/SILKSCREEN_TOP"
+        },
+        "B": {
+            "layers": [
+                "BOARD GEOMETRY/SILKSCREEN_BOTTOM",
+                "PACKAGE GEOMETRY/SILKSCREEN_BOTTOM",
+                "REF DES/SILKSCREEN_BOTTOM",
+                "COMPONENT VALUE/SILKSCREEN_BOTTOM"
+            ],
+        "refdes": "REF DES/SILKSCREEN_BOTTOM",
+        "value": "COMPONENT VALUE/SILKSCREEN_BOTTOM"
+        }
+    },
+    "fabrication": {
+        "F": {
+            "layers": [
+                "BOARD GEOMETRY/ASSEMBLY_TOP",
+                "PACKAGE GEOMETRY/ASSEMBLY_TOP",
+                "REF DES/ASSEMBLY_TOP",
+                "COMPONENT VALUE/ASSEMBLY_TOP"
+            ],
+            "refdes": "REF DES/ASSEMBLY_TOP",
+            "value": "COMPONENT VALUE/ASSEMBLY_TOP"
+        },
+        "B": {
+            "layers": [
+                "BOARD GEOMETRY/ASSEMBLY_BOTTOM",
+                "PACKAGE GEOMETRY/ASSEMBLY_BOTTOM",
+                "REF DES/ASSEMBLY_BOTTOM",
+                "COMPONENT VALUE/ASSEMBLY_BOTTOM"
+            ],
+            "refdes": "REF DES/ASSEMBLY_BOTTOM",
+            "value": "COMPONENT VALUE/ASSEMBLY_BOTTOM"
+        }
+    },
+    "settings": {
+        "exportInnerLayer": false,
+        "renderViaHoles": false,
+        "textAsSvgPaths": true,
+        "excludeDNP": false,
+        "pcbLinewidth": "design",
+        "fabricationLayerLinewidth": "design",
+        "silkscreenLayerLinewidth": "design",
+        "marginTop": 0.0,
+        "marginRight":0.0,
+        "marginBottom": 0.0,
+        "marginLeft": 0.0
+    }
+}

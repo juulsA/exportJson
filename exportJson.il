@@ -845,9 +845,68 @@ procedure( createZone( zone )
             "\t\"fillrule\": \"evenodd\",\n"
             "\t\"net\": \"" net "\"\n"
             "}"
-        )        
+        )
     )
 )
+
+procedure( createPolygon( polygon ) 
+    let( (  ( svgpath 'unbound )            
+            segments width path voids )
+
+        segments = polygon->segments
+
+        width = car(segments)->width
+
+        ; draw the copper
+        path = createSvgPath( segments )
+
+        if( boundp( 'svgpath ) then
+            tconc( svgpath path )
+        else
+            svgpath = tconc( nil path )
+        )
+
+        ; ; draw the voids
+        voids = polygon->voids
+
+        foreach( void voids
+            segments = void->segments
+            path = createSvgPath( segments )
+
+            ; void can only exist, if a path already exists
+            tconc( svgpath path )     
+        )   
+    
+        polygon = strcat(
+            "{\n"
+            "\t\"type\": \"polygon\",\n"
+            "\t\"filled\": 0,\n"
+            "\t\"width\": " sprintf(nil "%f" width ) ",\n"
+            "\t\"svgpath\": \"" buildString( car( svgpath ) " " ) "\"\n"
+            "}"
+        )
+    )
+)
+
+; {
+;     "type": "polygon",
+;     // Optional, defaults to 1
+;     "filled": 1,
+;     // Line width (only has effect for non-filled shapes)
+;     "width": width
+;     // SVG path of the polygon given as 'd' attribute of svg spec.
+;     // If this parameter is specified everything below it is ignored.
+;     "svgpath": svgpath,
+;     "pos": [x, y],
+;     "angle": angle,
+;     "polygons": [
+;       // Polygons are described as set of outlines.
+;       [
+;         [point1x, point1y], [point2x, point2y], ...
+;       ],
+;       ...
+;     ]
+;   }
 
 procedure( addBoardGeometry( pcbLinewidth margin cdsVersion )
     let( ( ( edges 'unbound ) dsn outline ( segments nil ) extents xStart yStart xEnd yEnd bBox element cutouts boardGeometry )
@@ -871,10 +930,10 @@ procedure( addBoardGeometry( pcbLinewidth margin cdsVersion )
         extents =  axlDBGetExtents( segments nil )
 
         xStart = caar( extents ) - caar( margin )
-        yStart = -cadar( extents ) + cadar( margin ) ;multiply by -1, s. ibom y convention
+        yStart = -cadar( extents ) - cadar( margin ) ;multiply by -1, s. ibom y convention
         
         xEnd = caadr( extents ) + caadr( margin )        
-        yEnd = -cadadr( extents ) - cadadr( margin ) ; multiply by -1, s. ibom y convention
+        yEnd = -cadadr( extents ) + cadadr( margin ) ; multiply by -1, s. ibom y convention
 
         bBox = strcat( 
             "{\n"
@@ -1750,7 +1809,7 @@ procedure( addFootprint( symbol cdsVersion )
     )        
 )
 
-procedure( addSymbols( variantSymbolList textsAsSvgPaths excludeDNP fabricationLayerLinewidth silkscreenLayerLinewidth cdsVersion )
+procedure( addSymbols( variantSymbolList textsAsSvgPaths excludeDNP fabricationLayerLinewidth silkscreenLayerLinewidth cdsVersion layerMapping )
     let( (  ( silkscreenTop 'unbound ) 
             ( silkscreenBottom 'unbound ) 
             ( fabricationTop 'unbound ) 
@@ -1797,10 +1856,10 @@ procedure( addSymbols( variantSymbolList textsAsSvgPaths excludeDNP fabricationL
 
                 foreach( child children
                     unless( excludeSymbol
-                        case( child->layer 
-                            (
-                                "PACKAGE GEOMETRY/SILKSCREEN_TOP"  
-                                if( ( child->objType == "path" ) || ( child->objType == "shape" ) then                      
+                        when( member( child->layer layerMapping->silkscreen->F->layers ) 
+                            case( child->objType
+                                (
+                                    "path"
                                     segments = child->segments
 
                                     ; loop though segments of each child
@@ -1817,159 +1876,112 @@ procedure( addSymbols( variantSymbolList textsAsSvgPaths excludeDNP fabricationL
                                             silkscreenTop = tconc( nil element )
                                         )                  
                                     )
-                                else
-                                    when( child->objType == "text" 
-                                        if( textsAsSvgPaths then 
-                                            element = textToSvgPath( child )
-                                        else
-                                            element = addText( child )
-                                        )
-
-                                        if( boundp( 'silkscreenTop ) then
-                                            tconc( silkscreenTop element )
-                                        else
-                                            silkscreenTop = tconc( nil element )
-                                        )                                 
-                                    )                        
-                                ) 
-                            )
-                            (
-                                "PACKAGE GEOMETRY/SILKSCREEN_BOTTOM"
-                                if( ( child->objType == "path" ) || ( child->objType == "shape" ) then
-                                    segments = child->segments
-
-                                    ; loop though segments of each child
-                                    foreach( segment segments
-                                        if( silkscreenLayerLinewidth then
-                                            element = parseSegment( segment silkscreenLayerLinewidth )
-                                        else
-                                            element = parseSegment( segment segment->width )                   
-                                        )
-
-                                        if( boundp( 'silkscreenBottom ) then
-                                            tconc( silkscreenBottom element )
-                                        else
-                                            silkscreenBottom = tconc( nil element )
-                                        )                  
-                                    )
-                                else
-                                    when( child->objType == "text" 
-                                        if( textsAsSvgPaths then 
-                                            element = textToSvgPath( child )
-                                        else
-                                            element = addText( child )
-                                        )  
-
-                                        if( boundp( 'silkscreenBottom ) then
-                                            tconc( silkscreenBottom element )
-                                        else
-                                            silkscreenBottom = tconc( nil element )
-                                        )                                 
-                                    )                        
-                                ) 
-                            )
-                            (
-                                "REF DES/SILKSCREEN_TOP"
-                                when( child->objType == "text"    
-                                    if( textsAsSvgPaths then
-                                        element = textToSvgPath( child "refdes" )
-                                    else
-                                        element = addText( child "refdes" )   
-                                    )
-                                                        
+                                )
+                                (
+                                    "shape"
+                                    element = createPolygon( child )
+                                    
                                     if( boundp( 'silkscreenTop ) then
                                         tconc( silkscreenTop element )
                                     else
                                         silkscreenTop = tconc( nil element )
-                                    )                 
-                                )
-                            )      
-                            (
-                                "REF DES/SILKSCREEN_BOTTOM"
-                                when( child->objType == "text"    
-                                    if( textsAsSvgPaths then
-                                        element = textToSvgPath( child "refdes" )
-                                    else
-                                        element = addText( child "refdes" )   
                                     )
-                                                        
-                                    if( boundp( 'silkscreenBottom ) then
-                                        tconc( silkscreenBottom element )
-                                    else
-                                        silkscreenBottom = tconc( nil element )
-                                    )                 
                                 )
-                            )  
-                            (
-                                "COMPONENT VALUE/SILKSCREEN_TOP"
-                                when( child->objType == "text"    
-                                    if( textsAsSvgPaths then
-                                        element = textToSvgPath( child "value" )                                    
+                                (
+                                    "text"
+                                    arg = t
+                                    when( child->layer == layerMapping->silkscreen->F->refdes 
+                                        arg = "refdes"
+                                    )
+
+                                    when( child->layer == layerMapping->silkscreen->F->value 
+                                        arg = "value"
+                                    )
+
+                                    if( textsAsSvgPaths then 
+                                        element = textToSvgPath( child arg )
                                     else
-                                        element = addText( child "value" )
-                                    )  
+                                        element = addText( child arg )
+                                    )
 
                                     if( boundp( 'silkscreenTop ) then
                                         tconc( silkscreenTop element )
                                     else
                                         silkscreenTop = tconc( nil element )
-                                    )                 
-                                )
-                            )      
-                            (
-                                "COMPONENT VALUE/SILKSCREEN_BOTTOM"
-                                when( child->objType == "text"    
-                                    if( textsAsSvgPaths then
-                                        element = textToSvgPath( child "value" )                                    
-                                    else
-                                        element = addText( child "value" )
                                     )     
+                                )
+                                (
+                                    t
+                                    
+                                )
+                            )
+                        )   
+                        
+                        when( member( child->layer layerMapping->silkscreen->B->layers )
+                            case( child->objType
+                                (
+                                    "path"
+                                    segments = child->segments
+
+                                    ; loop though segments of each child
+                                    foreach( segment segments
+                                        if( silkscreenLayerLinewidth then
+                                            element = parseSegment( segment silkscreenLayerLinewidth )
+                                        else
+                                            element = parseSegment( segment segment->width )                   
+                                        )
+
+                                        if( boundp( 'silkscreenBottom ) then
+                                            tconc( silkscreenBottom element )
+                                        else
+                                            silkscreenBottom = tconc( nil element )
+                                        )                  
+                                    )
+                                )
+                                (
+                                    "shape"
+                                    element = createPolygon( child )
+                                    
+                                    if( boundp( 'silkscreenBottom ) then
+                                        tconc( silkscreenBottom element )
+                                    else
+                                        silkscreenBottom = tconc( nil element )
+                                    )
+                                )
+                                (
+                                    "text"
+                                    arg = t
+                                    when( child->layer == layerMapping->silkscreen->B->refdes 
+                                        arg = "refdes"
+                                    )
+
+                                    when( child->layer == layerMapping->silkscreen->B->value 
+                                        arg = "value"
+                                    )
+
+                                    if( textsAsSvgPaths then 
+                                        element = textToSvgPath( child arg )
+                                    else
+                                        element = addText( child arg )
+                                    )
 
                                     if( boundp( 'silkscreenBottom ) then
                                         tconc( silkscreenBottom element )
                                     else
                                         silkscreenBottom = tconc( nil element )
-                                    )                 
+                                    )     
                                 )
-                            )   
-                            (
-                                "PACKAGE GEOMETRY/ASSEMBLY_TOP"
-                                if( ( child->objType == "path" ) || ( child->objType == "shape" ) then
-                                    segments = child->segments
-
-                                    ; loop though segments of each child
-                                    foreach( segment segments
-                                        if( fabricationLayerLinewidth then
-                                            element = parseSegment( segment fabricationLayerLinewidth )
-                                        else
-                                            element = parseSegment( segment segment->width )                   
-                                        )         
-
-                                        if( boundp( 'fabricationTop ) then
-                                            tconc( fabricationTop element )
-                                        else
-                                            fabricationTop = tconc( nil element )
-                                        )                  
-                                    )    
-                                else
-                                    when( child->objType == "text" 
-                                        if( textsAsSvgPaths then 
-                                            element = textToSvgPath( child )
-                                        else
-                                            element = addText( child )
-                                        )  
-
-                                        if( boundp( 'fabricationTop ) then
-                                            tconc( fabricationTop element )
-                                        else
-                                            fabricationTop = tconc( nil element )
-                                        )                                 
-                                    )                        
-                                )                                            
+                                (
+                                    t
+                                    
+                                )
                             )
-                            (
-                                "PACKAGE GEOMETRY/ASSEMBLY_BOTTOM"                        
-                                if( ( child->objType == "path" ) || ( child->objType == "shape" ) then
+                        ) 
+                            
+                        when( member( child->layer layerMapping->fabrication->F->layers )
+                            case( child->objType
+                                (
+                                    "path"
                                     segments = child->segments
 
                                     ; loop though segments of each child
@@ -1978,104 +1990,235 @@ procedure( addSymbols( variantSymbolList textsAsSvgPaths excludeDNP fabricationL
                                             element = parseSegment( segment fabricationLayerLinewidth )
                                         else
                                             element = parseSegment( segment segment->width )                   
-                                        )     
+                                        )
 
-                                        if( boundp( 'fabricationBottom ) then
-                                            tconc( fabricationBottom element )
+                                        if( boundp( 'fabricationTop ) then
+                                            tconc( fabricationTop element )
                                         else
-                                            fabricationBottom = tconc( nil element )
+                                            fabricationTop = tconc( nil element )
                                         )                  
                                     )
-                                else
-                                    when( child->objType == "text" 
-                                        if( textsAsSvgPaths then 
-                                            element = textToSvgPath( child )
-                                        else
-                                            element = addText( child )
-                                        ) 
-
-                                        if( boundp( 'fabricationBottom ) then
-                                            tconc( fabricationBottom element )
-                                        else
-                                            fabricationBottom = tconc( nil element )
-                                        )                                 
-                                    )                        
-                                ) 
-                            )        
-                            (
-                                "REF DES/ASSEMBLY_TOP"
-                                when( child->objType == "text"    
-                                    if( textsAsSvgPaths then
-                                        element = textToSvgPath( child "refdes" )
-                                    else
-                                        element = addText( child "refdes" )   
-                                    )
-                                                    
-                                    if( boundp( 'fabricationTop ) then
-                                        tconc( fabricationTop element )
-                                    else
-                                        fabricationTop = tconc( nil element )
-                                    )                 
                                 )
-                            )      
-                            (
-                                "REF DES/ASSEMBLY_BOTTOM"
-                                when( child->objType == "text"    
-                                    if( textsAsSvgPaths then
-                                        element = textToSvgPath( child "refdes" )
-                                    else
-                                        element = addText( child "refdes" )   
-                                    )
-                                                        
-                                    if( boundp( 'fabricationBottom ) then
-                                        tconc( fabricationBottom element )
-                                    else
-                                        fabricationBottom = tconc( nil element )
-                                    )                 
-                                )
-                            )    
-                            (
-                                "COMPONENT VALUE/ASSEMBLY_TOP"
-                                when( child->objType == "text"  
-                                    if( textsAsSvgPaths then
-                                        element = textToSvgPath( child "value" )                                    
-                                    else
-                                        element = addText( child "value" )
-                                    )
+                                (
+                                    "shape"
+                                    element = createPolygon( child )
                                     
                                     if( boundp( 'fabricationTop ) then
                                         tconc( fabricationTop element )
                                     else
                                         fabricationTop = tconc( nil element )
-                                    )                 
+                                    )
                                 )
-                            )      
-                            (
-                                "COMPONENT VALUE/ASSEMBLY_BOTTOM"
-                                when( child->objType == "text"    
-                                    if( textsAsSvgPaths then
-                                        element = textToSvgPath( child "value" )                                    
+                                (
+                                    "text"
+                                    arg = t
+                                    when( child->layer == layerMapping->fabrication->F->refdes 
+                                        arg = "refdes"
+                                    )
+
+                                    when( child->layer == layerMapping->fabrication->F->value 
+                                        arg = "value"
+                                    )
+
+                                    if( textsAsSvgPaths then 
+                                        element = textToSvgPath( child arg )
                                     else
-                                        element = addText( child "value" )
-                                    )  
+                                        element = addText( child arg )
+                                    )
+
+                                    if( boundp( 'fabricationTop ) then
+                                        tconc( fabricationTop element )
+                                    else
+                                        fabricationTop = tconc( nil element )
+                                    )     
+                                )
+                                (
+                                    t
+                                   
+                                )
+                            )
+                        ) 
+
+                        when( member( child->layer layerMapping->fabrication->B->layers )
+                            case( child->objType
+                                (
+                                    "path"
+                                    segments = child->segments
+
+                                    ; loop though segments of each child
+                                    foreach( segment segments
+                                        if( fabricationLayerLinewidth then
+                                            element = parseSegment( segment fabricationLayerLinewidth )
+                                        else
+                                            element = parseSegment( segment segment->width )                   
+                                        )
+
+                                        if( boundp( 'fabricationBottom ) then
+                                            tconc( fabricationBottom element )
+                                        else
+                                            fabricationBottom = tconc( nil element )
+                                        )                  
+                                    )
+                                )
+                                (
+                                    "shape"
+                                    element = createPolygon( child )
+                                    
+                                    if( boundp( 'fabricationBottom ) then
+                                        tconc( fabricationBottom element )
+                                    else
+                                        fabricationBottom = tconc( nil element )
+                                    )
+                                )
+                                (
+                                    "text"
+                                    arg = t
+                                    when( child->layer == layerMapping->fabrication->B->refdes 
+                                        arg = "refdes"
+                                    )
+
+                                    when( child->layer == layerMapping->fabrication->B->value 
+                                        arg = "value"
+                                    )
+
+                                    if( textsAsSvgPaths then 
+                                        element = textToSvgPath( child arg )
+                                    else
+                                        element = addText( child arg )
+                                    )
 
                                     if( boundp( 'fabricationBottom ) then
                                         tconc( fabricationBottom element )
                                     else
                                         fabricationBottom = tconc( nil element )
-                                    )                 
+                                    )     
                                 )
-                            )   
-                            ; OTHER LAYERS, WHICH HAVE TO BE CONSIDERED, CAN BE ADDED HERE
-                            (
-                                t
-                                ; ignored
+                                (
+                                    t
+                                    
+                                )
                             )
                         )
                     ) 
                 )    
             )   
         ) 
+
+        ; add extra silkscreen layers (top)
+        foreach( extraLayer layerMapping->silkscreen->F->layers
+            print( extraLayer )
+            axlVisibleDesign( nil )
+            axlVisibleLayer( extraLayer t )
+            axlClearSelSet()
+            axlSetFindFilter(?enabled list( "noall" "lines" "shapes" ) ?onButtons list( "noall" "lines" "shapes" ) )
+            axlAddSelectAll()
+            elems = axlGetSelSet()
+            
+            foreach( elem elems
+                
+                unless( elem->parent->refdes
+                    if( ( elem->objType == "path" ) || ( elem->objType == "shape" ) then  
+                    
+                        element = createPolygon( elem )
+
+                        if( boundp( 'silkscreenTop ) then
+                            tconc( silkscreenTop element )
+                        else
+                            silkscreenTop = tconc( nil element )
+                        )
+                    )
+                )
+            )
+            axlClearSelSet()
+            axlSetFindFilter(?enabled list( "all" ) ?onButtons list( "all" ) )
+        )
+
+        ; add extra silkscreen layers (bottom)
+        foreach( extraLayer layerMapping->silkscreen->B->layers
+            print( extraLayer )
+            axlVisibleDesign( nil )
+            axlVisibleLayer( extraLayer t )
+            axlClearSelSet()
+            axlSetFindFilter(?enabled list( "noall" "lines" "shapes" ) ?onButtons list( "noall" "lines" "shapes" ) )
+            axlAddSelectAll()
+            elems = axlGetSelSet()
+            
+            foreach( elem elems
+                
+                unless( elem->parent->refdes
+                    if( ( elem->objType == "path" ) || ( elem->objType == "shape" ) then  
+                    
+                        element = createPolygon( elem )
+
+                        if( boundp( 'silkscreenBottom) then
+                            tconc( silkscreenBottom element )
+                        else
+                            silkscreenBottom = tconc( nil element )
+                        )
+                    )
+                )
+            )
+            axlClearSelSet()
+            axlSetFindFilter(?enabled list( "all" ) ?onButtons list( "all" ) )
+        )
+
+        ; add extra fabrication layers (top)
+        foreach( extraLayer layerMapping->fabrication->F->layers
+            print( extraLayer )
+            axlVisibleDesign( nil )
+            axlVisibleLayer( extraLayer t )
+            axlClearSelSet()
+            axlSetFindFilter(?enabled list( "noall" "lines" "shapes" ) ?onButtons list( "noall" "lines" "shapes" ) )
+            axlAddSelectAll()
+            elems = axlGetSelSet()
+            
+            foreach( elem elems
+                
+                unless( elem->parent->refdes
+                    if( ( elem->objType == "path" ) || ( elem->objType == "shape" ) then  
+                    
+                        element = createPolygon( elem )
+
+                        if( boundp( 'fabricationTop ) then
+                            tconc( fabricationTop element )
+                        else
+                            fabricationTop = tconc( nil element )
+                        )
+                    )
+                )
+            )
+            axlClearSelSet()
+            axlSetFindFilter(?enabled list( "all" ) ?onButtons list( "all" ) )
+        )
+
+        ; add extra fabrication layers (bottom)
+        foreach( extraLayer layerMapping->fabrication->B->layers
+            print( extraLayer )
+            axlVisibleDesign( nil )
+            axlVisibleLayer( extraLayer t )
+            axlClearSelSet()
+            axlSetFindFilter(?enabled list( "noall" "lines" "shapes" ) ?onButtons list( "noall" "lines" "shapes" ) )
+            axlAddSelectAll()
+            elems = axlGetSelSet()
+            
+            foreach( elem elems
+                
+                unless( elem->parent->refdes
+                    if( ( elem->objType == "path" ) || ( elem->objType == "shape" ) then  
+                    
+                        element = createPolygon( elem )
+
+                        if( boundp( 'fabricationBottom ) then
+                            tconc( fabricationBottom element )
+                        else
+                            fabricationBottom = tconc( nil element )
+                        )
+                    )
+                )
+            )
+            axlClearSelSet()
+            axlSetFindFilter(?enabled list( "all" ) ?onButtons list( "all" ) )
+        )
 
         ; TOP SILKSCREEN
         if( boundp( 'silkscreenTop ) then
@@ -2370,7 +2513,7 @@ procedure( addNets()
     )
 )
 
-procedure( writeJsonFile( @key ( variant nil ) ( symbols 'unbound ) ( alternateParts 'unbound ) ( exportInnerLayers nil ) ( renderViaHoles nil ) ( textsAsSvgPaths t ) ( excludeDNP nil ) ( pcbLinewidth nil ) ( fabricationLayerLinewidth nil ) ( silkscreenLayerLinewidth nil ) ( margin list( '( 0.0 0.0 ) '( 0.0 0.0 ) ) ) ( rev "" ) ( company "" ) )
+procedure( writeJsonFile( @key ( variant nil ) ( symbols 'unbound ) ( alternateParts 'unbound ) ( exportInnerLayers nil ) ( renderViaHoles nil ) ( textsAsSvgPaths t ) ( excludeDNP nil ) ( pcbLinewidth nil ) ( fabricationLayerLinewidth nil ) ( silkscreenLayerLinewidth nil ) ( margin list( '( 0.0 0.0 ) '( 0.0 0.0 ) ) ) ( rev "" ) ( company "" ) ( layerMapping nil ) )
     let( ( outPort pcbData )
 		; get cds version
 		cdsVersion = atof( axlGetVariableList("cdsversion") )
@@ -2411,7 +2554,7 @@ procedure( writeJsonFile( @key ( variant nil ) ( symbols 'unbound ) ( alternateP
                                     buildString( list(
                                         addMetadata( dsnName rev company )
                                         addBoardGeometry( pcbLinewidth margin cdsVersion )
-                                        addSymbols( symbols textsAsSvgPaths excludeDNP fabricationLayerLinewidth silkscreenLayerLinewidth cdsVersion )            
+                                        addSymbols( symbols textsAsSvgPaths excludeDNP fabricationLayerLinewidth silkscreenLayerLinewidth cdsVersion layerMapping )            
                                         )             
                                         ",\n" 
                                     )              
@@ -2549,9 +2692,118 @@ let( (  (   variantFile "Variants.lst" )
     )       
 )
 
-procedure( exportJson( @key ( exportInnerLayers nil ) ( renderViaHoles nil ) ( textsAsSvgPaths t ) ( excludeDNP nil ) ( pcbLinewidth nil ) ( fabricationLayerLinewidth nil ) ( silkscreenLayerLinewidth nil ) ( margin list( '( 0.0 0.0 ) '( 0.0 0.0 ) ) ) ( rev "" ) ( company "" ) )
+procedure( createDefaultConfig( fileName )
+    let( ( config ) 
+        config = "{\n
+            \"silkscreen\": {\n
+                \"F\": {\n
+                    \"layers\": [\n
+                        \"BOARD GEOMETRY/SILKSCREEN_TOP\",\n
+                        \"PACKAGE GEOMETRY/SILKSCREEN_TOP\",\n
+                        \"REF DES/SILKSCREEN_TOP\",\n
+                        \"COMPONENT VALUE/SILKSCREEN_TOP\"\n
+                    ],\n
+                    \"refdes\": \"REF DES/SILKSCREEN_TOP\",\n
+                    \"value\": \"COMPONENT VALUE/SILKSCREEN_TOP\"\n
+                },\n
+                \"B\": {\n
+                    \"layers\": [\n
+                        \"BOARD GEOMETRY/SILKSCREEN_BOTTOM\",\n
+                        \"PACKAGE GEOMETRY/SILKSCREEN_BOTTOM\",\n
+                        \"REF DES/SILKSCREEN_BOTTOM\",\n
+                        \"COMPONENT VALUE/SILKSCREEN_BOTTOM\"\n
+                    ],\n
+                \"refdes\": \"REF DES/SILKSCREEN_BOTTOM\",\n
+                \"value\": \"COMPONENT VALUE/SILKSCREEN_BOTTOM\"\n
+                }\n
+            },\n
+            \"fabrication\": {\n
+                \"F\": {\n
+                    \"layers\": [\n
+                        \"BOARD GEOMETRY/ASSEMBLY_TOP\",\n
+                        \"PACKAGE GEOMETRY/ASSEMBLY_TOP\",\n
+                        \"REF DES/ASSEMBLY_TOP\",\n
+                        \"COMPONENT VALUE/ASSEMBLY_TOP\"\n
+                    ],\n
+                    \"refdes\": \"REF DES/ASSEMBLY_TOP\",\n
+                    \"value\": \"COMPONENT VALUE/ASSEMBLY_TOP\"\n
+                },\n
+                \"B\": {\n
+                    \"layers\": [\n
+                        \"BOARD GEOMETRY/ASSEMBLY_BOTTOM\",\n
+                        \"PACKAGE GEOMETRY/ASSEMBLY_BOTTOM\",\n
+                        \"REF DES/ASSEMBLY_BOTTOM\",\n
+                        \"COMPONENT VALUE/ASSEMBLY_BOTTOM\"\n
+                    ],\n
+                    \"refdes\": \"REF DES/ASSEMBLY_BOTTOM\",\n
+                    \"value\": \"COMPONENT VALUE/ASSEMBLY_BOTTOM\"\n
+                }\n
+            },\n
+            \"settings\": {\n
+                \"exportInnerLayer\": false,\n
+                \"renderViaHoles\": false,\n
+                \"textAsSvgPaths\": true,\n
+                \"excludeDNP\": false,\n
+                \"pcbLinewidth\": \"design\",\n
+                \"fabricationLayerLinewidth\": \"design\",\n
+                \"silkscreenLayerLinewidth\": \"design\",\n
+                \"marginTop\": 0,\n
+                \"marginRight\": 0,\n
+                \"marginBottom\": 0,\n
+                \"marginLeft\": 0\n
+            }\n
+        }"
+
+        outPort = outfile( fileName )
+        fprintf( outPort config )
+        close( outPort )
+    )
+)
+
+procedure( exportJson( @key ( exportInnerLayers nil ) ( renderViaHoles nil ) ( textsAsSvgPaths t ) ( excludeDNP nil ) ( pcbLinewidth nil ) ( fabricationLayerLinewidth nil ) ( silkscreenLayerLinewidth nil ) ( margin list( '( 0.0 0.0 ) '( 0.0 0.0 ) ) ) ( rev "" ) ( company "" ) ( config nil ) )
     let( ( ( variantFile "Variants.lst" ) variantInformation variantSymbolList alternateParts symbols )
-        
+
+        if( config then
+            config = jsonDecode( config )
+            settings = config->settings
+
+            exportInnerLayers = settings->exportInnerLayers
+            renderViaHoles = settings->renderViaHoles
+            textsAsSvgPaths = settings->renderViaHoles    
+            excludeDNP = settings->excludeDNP
+            pcbLinewidth = settings->pcbLinewidth
+
+            when(pcbLinewidth == "design"
+                pcbLinewidth = nil
+            )
+
+            ; use design values
+            fabricationLayerLinewidth = settings->fabricationLayerLinewidth
+
+            when(fabricationLayerLinewidth == "design"
+                fabricationLayerLinewidth = nil
+            )
+
+            ; use design values
+            silkscreenLayerLinewidth = settings->silkscreenLayerLinewidth
+
+            ; use design values
+            when(silkscreenLayerLinewidth == "design"
+                silkscreenLayerLinewidth = nil
+            )
+
+            marginTop = settings->marginTop
+            marginRight = settings->marginRight
+            marginBottom = settings->marginBottom
+            marginLeft = settings->marginLeft
+
+            margin = list( list(marginLeft marginBottom) list(marginRight marginTop) )
+        else
+            ; create default config for default layer mapping
+            createDefaultConfig( "ibomExportDefaultConfig.json" )
+            config = jsonDecode( "ibomExportDefaultConfig.json" )
+        )
+
         ; information
         unless( textsAsSvgPaths
             warn( "External font_data is used, text may look different ... " )
@@ -2575,7 +2827,7 @@ procedure( exportJson( @key ( exportInnerLayers nil ) ( renderViaHoles nil ) ( t
                     symbols = mapcar( lambda( ( refdes ) axlDBFindByName( 'refdes refdes )->symbol ) variantSymbolList[variant] )
                     writeJsonFile( ?variant variant ?symbols symbols ?alternateParts alternateParts[variant] ?exportInnerLayers exportInnerLayers ?renderViaHoles renderViaHoles ?textsAsSvgPaths textsAsSvgPaths ?excludeDNP excludeDNP
                         ?pcbLinewidth pcbLinewidth ?fabricationLayerLinewidth fabricationLayerLinewidth ?silkscreenLayerLinewidth silkscreenLayerLinewidth ?margin margin
-                        ?rev rev ?company company )                
+                        ?rev rev ?company company ?layerMapping config )                
                 )        
             else
                 error( "Tables could not be created ... " ) 
@@ -2585,7 +2837,7 @@ procedure( exportJson( @key ( exportInnerLayers nil ) ( renderViaHoles nil ) ( t
             warn( "No variant.lst found, exporting entire design ... ")
             writeJsonFile( ?exportInnerLayers exportInnerLayers ?renderViaHoles renderViaHoles ?textsAsSvgPaths textsAsSvgPaths
                 ?pcbLinewidth pcbLinewidth ?fabricationLayerLinewidth fabricationLayerLinewidth ?silkscreenLayerLinewidth silkscreenLayerLinewidth ?margin margin
-                ?rev rev ?company company )        
+                ?rev rev ?company company ?layerMapping config )
         )  
     )
 )
