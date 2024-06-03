@@ -14,6 +14,10 @@ A directory named `json` is created in your project folder containing the `.json
 
 The script uses the "project name" ( optional:  + "_" + "variant" ) as the file name and asks for the optional arguments `revision` and `company`. By passing `?rev "xyz"` and `?company "name"` as arguments to the `exportJson` function, the input prompt is suppressed and these values are used for file generation. This is can be useful to customize the function to your needs.
 
+The output can be configured by passing the optional arguments directly (as listed below) or by using a [JSON file](https://github.com/juulsA/exportJson/blob/7fcd285ad1a78d0ed90ee3009498ae475852c5b5/config.json) that contains the output configuration. The JSON file can be used passing `?config "filePath"` to the `exportJson` function.
+
+If a JSON file is used, but the linewidths are not to be changed, the value `"design"` must be used instead of a number ( e.g. `0.1`).
+
 ### Optional arguments
 | argument | description | type |
 | ------| ------ | ------ |
@@ -21,7 +25,7 @@ The script uses the "project name" ( optional:  + "_" + "variant" ) as the file 
 | ?renderViaHoles | default: nil, render via holes | bool |
 | ?textAsSvgPaths | default: t, uses font-data otherwise | bool |
 | ?excludeDNP | default: nil, all fabrication and silkscreen data of an unplaced component are ignored | bool |
-| ?pcbLineWidth | override value | float |
+| ?pcbLinewidth | override value | float |
 | ?fabricationLayerLinewidth | override value | float |
 | ?silkscreenLayerLinewidth | override value | float |
 | ?margin | extra spacing for displaying | list / float |
@@ -55,8 +59,8 @@ Parts with no reference designator assigned are not included in the interactive 
 ## Custom properties
 Any custom properties assigned to a component are added to the `extra_fields`.
 
-## Layer Mapping
-Only the following layers are considered for file creation:
+## Default Layer Mapping
+If no JSON file for output configuration is used, only the following layers are considered for file creation:
 
 | ibom | allegro |
 | ------| ------ |
