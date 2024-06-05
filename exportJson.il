@@ -851,7 +851,7 @@ procedure( createZone( zone )
 
 procedure( createPolygon( polygon ) 
     let( (  ( svgpath 'unbound )            
-            segments width path voids )
+            segments width path voids filled )
 
         segments = polygon->segments
 
@@ -869,6 +869,12 @@ procedure( createPolygon( polygon )
         ; ; draw the voids
         voids = polygon->voids
 
+        if( voids then
+            filled = 0
+        else
+            filled = 1
+        )
+
         foreach( void voids
             segments = void->segments
             path = createSvgPath( segments )
@@ -880,7 +886,7 @@ procedure( createPolygon( polygon )
         polygon = strcat(
             "{\n"
             "\t\"type\": \"polygon\",\n"
-            "\t\"filled\": 0,\n"
+            "\t\"filled\": " sprintf(nil "%d" filled ) ",\n"
             "\t\"width\": " sprintf(nil "%f" width ) ",\n"
             "\t\"svgpath\": \"" buildString( car( svgpath ) " " ) "\"\n"
             "}"
