@@ -2130,8 +2130,8 @@ procedure( addSymbols( variantSymbolList textsAsSvgPaths excludeDNP fabricationL
 
                             ; loop though segments of each elem
                             foreach( segment segments
-                                if( fabricationLayerLinewidth then
-                                    element = parseSegment( segment fabricationLayerLinewidth )
+                                if( silkscreenLayerLinewidth then
+                                    element = parseSegment( segment silkscreenLayerLinewidth )
                                 else
                                     element = parseSegment( segment segment->width )                   
                                 )
@@ -2196,8 +2196,8 @@ procedure( addSymbols( variantSymbolList textsAsSvgPaths excludeDNP fabricationL
 
                         ; loop though segments of each elem
                         foreach( segment segments
-                            if( fabricationLayerLinewidth then
-                                element = parseSegment( segment fabricationLayerLinewidth )
+                            if( silkscreenLayerLinewidth then
+                                element = parseSegment( segment silkscreenLayerLinewidth )
                             else
                                 element = parseSegment( segment segment->width )                   
                             )
