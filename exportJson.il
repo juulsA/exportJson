@@ -1816,7 +1816,7 @@ procedure( addSymbols( variantSymbolList textsAsSvgPaths excludeDNP fabricationL
             ( fabricationBottom 'unbound )             
             ( footprints 'unbound ) 
             ( nets 'unbound )
-            dsn symbols footprint excludeSymbol id sym value package field children segments element silkscreen fabrication drawings syms ) 
+            dsn symbols footprint excludeSymbol id sym value package field children segments element silkscreen fabrication drawings syms visList ) 
 
         ; get design
         dsn = axlDBGetDesign()
@@ -2104,6 +2104,8 @@ procedure( addSymbols( variantSymbolList textsAsSvgPaths excludeDNP fabricationL
             )   
         ) 
 
+        visList = axlVisibleGet()
+
         ; add extra silkscreen layers (top)
         foreach( extraLayer layerMapping->silkscreen->F->layers
             axlVisibleDesign( nil )
@@ -2371,6 +2373,8 @@ procedure( addSymbols( variantSymbolList textsAsSvgPaths excludeDNP fabricationL
             axlClearSelSet()
             axlSetFindFilter(?enabled list( "all" ) ?onButtons list( "all" ) )
         )
+
+        axlVisibleSet( visList )
 
         ; TOP SILKSCREEN
         if( boundp( 'silkscreenTop ) then
