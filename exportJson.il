@@ -2106,25 +2106,63 @@ procedure( addSymbols( variantSymbolList textsAsSvgPaths excludeDNP fabricationL
 
         ; add extra silkscreen layers (top)
         foreach( extraLayer layerMapping->silkscreen->F->layers
-            print( extraLayer )
             axlVisibleDesign( nil )
             axlVisibleLayer( extraLayer t )
             axlClearSelSet()
-            axlSetFindFilter(?enabled list( "noall" "lines" "shapes" ) ?onButtons list( "noall" "lines" "shapes" ) )
+            axlSetFindFilter(?enabled list( "noall" "lines" "shapes" "text" ) ?onButtons list( "noall" "lines" "shapes" "text" ) )
             axlAddSelectAll()
             elems = axlGetSelSet()
             
             foreach( elem elems
-                
                 unless( elem->parent->refdes
-                    if( ( elem->objType == "path" ) || ( elem->objType == "shape" ) then  
-                    
-                        element = createPolygon( elem )
+                    case( elem->objType
+                        (
+                            "path"
+                            segments = elem->segments
 
-                        if( boundp( 'silkscreenTop ) then
-                            tconc( silkscreenTop element )
-                        else
-                            silkscreenTop = tconc( nil element )
+                            ; loop though segments of each elem
+                            foreach( segment segments
+                                if( fabricationLayerLinewidth then
+                                    element = parseSegment( segment fabricationLayerLinewidth )
+                                else
+                                    element = parseSegment( segment segment->width )                   
+                                )
+
+                                if( boundp( 'silkscreenTop ) then
+                                    tconc( silkscreenTop element )
+                                else
+                                    silkscreenTop = tconc( nil element )
+                                )
+                            )
+                        )
+                        (
+                            "shape"
+                            element = createPolygon( elem )
+                            
+                            if( boundp( 'silkscreenTop ) then
+                                tconc( silkscreenTop element )
+                            else
+                                silkscreenTop = tconc( nil element )
+                            )
+                        )
+                        (
+                            "text"
+                            arg = t
+                            
+                            if( textsAsSvgPaths then 
+                                element = textToSvgPath( elem arg )
+                            else
+                                element = addText( elem arg )
+                            )
+
+                            if( boundp( 'silkscreenTop ) then
+                                tconc( silkscreenTop element )
+                            else
+                                silkscreenTop = tconc( nil element )
+                            )    
+                        )
+                        (
+                            t
                         )
                     )
                 )
@@ -2135,26 +2173,62 @@ procedure( addSymbols( variantSymbolList textsAsSvgPaths excludeDNP fabricationL
 
         ; add extra silkscreen layers (bottom)
         foreach( extraLayer layerMapping->silkscreen->B->layers
-            print( extraLayer )
             axlVisibleDesign( nil )
             axlVisibleLayer( extraLayer t )
             axlClearSelSet()
-            axlSetFindFilter(?enabled list( "noall" "lines" "shapes" ) ?onButtons list( "noall" "lines" "shapes" ) )
+            axlSetFindFilter(?enabled list( "noall" "lines" "shapes" "text" ) ?onButtons list( "noall" "lines" "shapes" "text" ) )
             axlAddSelectAll()
             elems = axlGetSelSet()
             
             foreach( elem elems
-                
-                unless( elem->parent->refdes
-                    if( ( elem->objType == "path" ) || ( elem->objType == "shape" ) then  
-                    
-                        element = createPolygon( elem )
+                case( elem->objType
+                    (
+                        "path"
+                        segments = elem->segments
 
-                        if( boundp( 'silkscreenBottom) then
+                        ; loop though segments of each elem
+                        foreach( segment segments
+                            if( fabricationLayerLinewidth then
+                                element = parseSegment( segment fabricationLayerLinewidth )
+                            else
+                                element = parseSegment( segment segment->width )                   
+                            )
+
+                            if( boundp( 'silkscreenBottom ) then
+                                tconc( silkscreenBottom element )
+                            else
+                                silkscreenBottom = tconc( nil element )
+                            )
+                        )
+                    )
+                    (
+                        "shape"
+                        element = createPolygon( elem )
+                        
+                        if( boundp( 'silkscreenBottom ) then
                             tconc( silkscreenBottom element )
                         else
                             silkscreenBottom = tconc( nil element )
                         )
+                    )
+                    (
+                        "text"
+                        arg = t
+                        
+                        if( textsAsSvgPaths then 
+                            element = textToSvgPath( elem arg )
+                        else
+                            element = addText( elem arg )
+                        )
+
+                        if( boundp( 'silkscreenBottom ) then
+                            tconc( silkscreenBottom element )
+                        else
+                            silkscreenBottom = tconc( nil element )
+                        )    
+                    )
+                    (
+                        t
                     )
                 )
             )
@@ -2164,25 +2238,64 @@ procedure( addSymbols( variantSymbolList textsAsSvgPaths excludeDNP fabricationL
 
         ; add extra fabrication layers (top)
         foreach( extraLayer layerMapping->fabrication->F->layers
-            print( extraLayer )
             axlVisibleDesign( nil )
             axlVisibleLayer( extraLayer t )
             axlClearSelSet()
-            axlSetFindFilter(?enabled list( "noall" "lines" "shapes" ) ?onButtons list( "noall" "lines" "shapes" ) )
+            axlSetFindFilter(?enabled list( "noall" "lines" "shapes" "text" ) ?onButtons list( "noall" "lines" "shapes" "text" ) )
             axlAddSelectAll()
             elems = axlGetSelSet()
             
             foreach( elem elems
                 
                 unless( elem->parent->refdes
-                    if( ( elem->objType == "path" ) || ( elem->objType == "shape" ) then  
-                    
-                        element = createPolygon( elem )
-
-                        if( boundp( 'fabricationTop ) then
-                            tconc( fabricationTop element )
-                        else
-                            fabricationTop = tconc( nil element )
+                    case( elem->objType
+                        (
+                            "path"
+                            segments = elem->segments
+    
+                            ; loop though segments of each elem
+                            foreach( segment segments
+                                if( fabricationLayerLinewidth then
+                                    element = parseSegment( segment fabricationLayerLinewidth )
+                                else
+                                    element = parseSegment( segment segment->width )                   
+                                )
+    
+                                if( boundp( 'fabricationTop ) then
+                                    tconc( fabricationTop element )
+                                else
+                                    fabricationTop = tconc( nil element )
+                                )
+                            )
+                        )
+                        (
+                            "shape"
+                            element = createPolygon( elem )
+                            
+                            if( boundp( 'fabricationTop ) then
+                                tconc( fabricationTop element )
+                            else
+                                fabricationTop = tconc( nil element )
+                            )
+                        )
+                        (
+                            "text"
+                            arg = t
+                            
+                            if( textsAsSvgPaths then 
+                                element = textToSvgPath( elem arg )
+                            else
+                                element = addText( elem arg )
+                            )
+    
+                            if( boundp( 'fabricationTop ) then
+                                tconc( fabricationTop element )
+                            else
+                                fabricationTop = tconc( nil element )
+                            )    
+                        )
+                        (
+                            t
                         )
                     )
                 )
@@ -2193,25 +2306,64 @@ procedure( addSymbols( variantSymbolList textsAsSvgPaths excludeDNP fabricationL
 
         ; add extra fabrication layers (bottom)
         foreach( extraLayer layerMapping->fabrication->B->layers
-            print( extraLayer )
             axlVisibleDesign( nil )
             axlVisibleLayer( extraLayer t )
             axlClearSelSet()
-            axlSetFindFilter(?enabled list( "noall" "lines" "shapes" ) ?onButtons list( "noall" "lines" "shapes" ) )
+            axlSetFindFilter(?enabled list( "noall" "lines" "shapes" "text" ) ?onButtons list( "noall" "lines" "shapes" "text" ) )
             axlAddSelectAll()
             elems = axlGetSelSet()
             
             foreach( elem elems
                 
                 unless( elem->parent->refdes
-                    if( ( elem->objType == "path" ) || ( elem->objType == "shape" ) then  
-                    
-                        element = createPolygon( elem )
-
-                        if( boundp( 'fabricationBottom ) then
-                            tconc( fabricationBottom element )
-                        else
-                            fabricationBottom = tconc( nil element )
+                    case( elem->objType
+                        (
+                            "path"
+                            segments = elem->segments
+    
+                            ; loop though segments of each elem
+                            foreach( segment segments
+                                if( fabricationLayerLinewidth then
+                                    element = parseSegment( segment fabricationLayerLinewidth )
+                                else
+                                    element = parseSegment( segment segment->width )                   
+                                )
+    
+                                if( boundp( 'fabricationBottom ) then
+                                    tconc( fabricationBottom element )
+                                else
+                                    fabricationBottom = tconc( nil element )
+                                )
+                            )
+                        )
+                        (
+                            "shape"
+                            element = createPolygon( elem )
+                            
+                            if( boundp( 'fabricationBottom ) then
+                                tconc( fabricationBottom element )
+                            else
+                                fabricationBottom = tconc( nil element )
+                            )
+                        )
+                        (
+                            "text"
+                            arg = t
+                            
+                            if( textsAsSvgPaths then 
+                                element = textToSvgPath( elem arg )
+                            else
+                                element = addText( elem arg )
+                            )
+    
+                            if( boundp( 'fabricationBottom ) then
+                                tconc( fabricationBottom element )
+                            else
+                                fabricationBottom = tconc( nil element )
+                            )    
+                        )
+                        (
+                            t
                         )
                     )
                 )
