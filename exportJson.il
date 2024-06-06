@@ -853,6 +853,14 @@ procedure( createPolygon( polygon )
     let( (  ( svgpath 'unbound )            
             segments width path voids filled )
 
+        ; default is unfilled
+        filled = 0
+        
+        ; if polygon is filled ...
+        when( polygon->fill
+            filled = 1
+        )
+
         segments = polygon->segments
 
         width = car(segments)->width
@@ -868,12 +876,6 @@ procedure( createPolygon( polygon )
 
         ; ; draw the voids
         voids = polygon->voids
-
-        if( voids then
-            filled = 0
-        else
-            filled = 1
-        )
 
         foreach( void voids
             segments = void->segments
@@ -1835,7 +1837,7 @@ procedure( addSymbols( variantSymbolList textsAsSvgPaths excludeDNP fabricationL
             ; fill bom
             ; if, symbol has a refdes
             ; make bom
-            when( symbol->refdes               
+            when( symbol->refdes
                 ; adding all pads
                 footprint = addFootprint( symbol cdsVersion )
 
@@ -1917,8 +1919,18 @@ procedure( addSymbols( variantSymbolList textsAsSvgPaths excludeDNP fabricationL
                                     )     
                                 )
                                 (
-                                    t
+                                    "polygon"
+                                    element = createPolygon( child )
                                     
+                                    if( boundp( 'silkscreenTop ) then
+                                        tconc( silkscreenTop element )
+                                    else
+                                        silkscreenTop = tconc( nil element )
+                                    )
+                                )
+                                (
+                                    t
+                                    print( "unknown type ...\n" )
                                 )
                             )
                         )   
@@ -1978,8 +1990,18 @@ procedure( addSymbols( variantSymbolList textsAsSvgPaths excludeDNP fabricationL
                                     )     
                                 )
                                 (
-                                    t
+                                    "polygon"
+                                    element = createPolygon( child )
                                     
+                                    if( boundp( 'silkscreenBottom ) then
+                                        tconc( silkscreenBottom element )
+                                    else
+                                        silkscreenBottom = tconc( nil element )
+                                    )
+                                )
+                                (
+                                    t
+                                    print( "unknown type ...\n" )
                                 )
                             )
                         ) 
@@ -2039,8 +2061,18 @@ procedure( addSymbols( variantSymbolList textsAsSvgPaths excludeDNP fabricationL
                                     )     
                                 )
                                 (
+                                    "polygon"
+                                    element = createPolygon( child )
+                                    
+                                    if( boundp( 'fabricationTop ) then
+                                        tconc( fabricationTop element )
+                                    else
+                                        fabricationTop = tconc( nil element )
+                                    )
+                                )
+                                (
                                     t
-                                   
+                                    print( "unknown type ...\n" )
                                 )
                             )
                         ) 
@@ -2100,8 +2132,18 @@ procedure( addSymbols( variantSymbolList textsAsSvgPaths excludeDNP fabricationL
                                     )     
                                 )
                                 (
-                                    t
+                                    "polygon"
+                                    element = createPolygon( child )
                                     
+                                    if( boundp( 'fabricationBottom ) then
+                                        tconc( fabricationBottom element )
+                                    else
+                                        fabricationBottom = tconc( nil element )
+                                    )
+                                )
+                                (
+                                    t
+                                    print( "unknown type ...\n" )
                                 )
                             )
                         )
