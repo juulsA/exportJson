@@ -168,6 +168,7 @@ procedure( jsonDecode( file )
         when( openCurlyBraces != 0 || openBrackets != 0 
             error( "unclosed objects" )
         )
+        close( prt )
         json
     )
 )

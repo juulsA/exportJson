@@ -2931,7 +2931,7 @@ procedure( exportJson( @key ( exportInnerLayers nil ) ( renderViaHoles nil ) ( t
 
             exportInnerLayers = settings->exportInnerLayers
             renderViaHoles = settings->renderViaHoles
-            textsAsSvgPaths = settings->renderViaHoles    
+            textsAsSvgPaths = settings->textAsSvgPaths
             excludeDNP = settings->excludeDNP
             pcbLinewidth = settings->pcbLinewidth
 
