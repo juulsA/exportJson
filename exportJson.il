@@ -927,13 +927,21 @@ procedure( addBoardGeometry( pcbLinewidth margin )
         segments = outline->segments
 
         ; for older .brd files
-		outlines = axlDBGetShapes( "Board Geometry/Outline" ) 
+		axlVisibleDesign( nil )
+		axlVisibleLayer( "Board Geometry/Outline" t )
+		axlClearSelSet()
+		axlSetFindFilter(?enabled list( "lines" "shapes" ) ?onButtons list( "lines" "shapes" ) )
+		axlAddSelectAll()
+
+		outlines = axlGetSelSet()		
 
         when( outlines
-			foreach( outline axlDBGetShapes( "Board Geometry/Outline" ) 
+			foreach( outline outlines 
 				segments = nconc( segments outline->segments )
 			)
 		)
+		
+		axlClearSelSet()
 
 		; abort json generation
 		unless( segments
@@ -1813,7 +1821,7 @@ procedure( addSymbols( variantSymbolList textsAsSvgPaths excludeDNP fabricationL
             ( fabricationBottom 'unbound )             
             ( footprints 'unbound ) 
             ( nets 'unbound )
-            dsn symbols footprint excludeSymbol id sym value package field children segments element silkscreen fabrication drawings syms visList ) 
+            dsn symbols footprint excludeSymbol id sym value package field children segments element silkscreen fabrication drawings syms ) 
 
         ; get design
         dsn = axlDBGetDesign()
@@ -2139,9 +2147,7 @@ procedure( addSymbols( variantSymbolList textsAsSvgPaths excludeDNP fabricationL
                     ) 
                 )    
             )   
-        ) 
-
-        visList = axlVisibleGet()
+        )
 
         ; add extra silkscreen layers (top)
         foreach( extraLayer layerMapping->silkscreen->F->layers
@@ -2410,8 +2416,6 @@ procedure( addSymbols( variantSymbolList textsAsSvgPaths excludeDNP fabricationL
             axlClearSelSet()
             axlSetFindFilter(?enabled list( "all" ) ?onButtons list( "all" ) )
         )
-
-        axlVisibleSet( visList )
 
         ; TOP SILKSCREEN
         if( boundp( 'silkscreenTop ) then
@@ -2952,7 +2956,10 @@ procedure( createDefaultConfig( fileName )
 )
 
 procedure( exportJson( @key ( exportInnerLayers nil ) ( renderViaHoles nil ) ( textsAsSvgPaths t ) ( excludeDNP nil ) ( pcbLinewidth nil ) ( fabricationLayerLinewidth nil ) ( silkscreenLayerLinewidth nil ) ( margin list( '( 0.0 0.0 ) '( 0.0 0.0 ) ) ) ( rev "" ) ( company "" ) ( config nil ) )
-    let( ( ( variantFile "Variants.lst" ) variantInformation variantSymbolList alternateParts symbols )
+    let( ( ( variantFile "Variants.lst" ) visList variantInformation variantSymbolList alternateParts symbols )
+        
+        ; get view
+        visList = axlVisibleGet()
 
         if( config then
             config = jsonDecode( config )
@@ -3029,6 +3036,9 @@ procedure( exportJson( @key ( exportInnerLayers nil ) ( renderViaHoles nil ) ( t
             writeJsonFile( ?exportInnerLayers exportInnerLayers ?renderViaHoles renderViaHoles ?textsAsSvgPaths textsAsSvgPaths
                 ?pcbLinewidth pcbLinewidth ?fabricationLayerLinewidth fabricationLayerLinewidth ?silkscreenLayerLinewidth silkscreenLayerLinewidth ?margin margin
                 ?rev rev ?company company ?layerMapping config )
-        )  
+        )
+
+        ; restore view
+        axlVisibleSet( visList )
     )
 )
