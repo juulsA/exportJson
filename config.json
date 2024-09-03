@@ -52,7 +52,7 @@
         "fabricationLayerLinewidth": "design",
         "silkscreenLayerLinewidth": "design",
         "marginTop": 0.0,
-        "marginRight":0.0,
+        "marginRight": 0.0,
         "marginBottom": 0.0,
         "marginLeft": 0.0
     }
