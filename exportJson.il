@@ -2226,54 +2226,56 @@ procedure( addSymbols( variantSymbolList textsAsSvgPaths excludeDNP fabricationL
             elems = axlGetSelSet()
             
             foreach( elem elems
-                case( elem->objType
-                    (
-                        "path"
-                        segments = elem->segments
+                unless( elem->parent->refdes
+                    case( elem->objType
+                        (
+                            "path"
+                            segments = elem->segments
 
-                        ; loop though segments of each elem
-                        foreach( segment segments
-                            if( silkscreenLayerLinewidth then
-                                element = parseSegment( segment silkscreenLayerLinewidth )
-                            else
-                                element = parseSegment( segment segment->width )                   
+                            ; loop though segments of each elem
+                            foreach( segment segments
+                                if( silkscreenLayerLinewidth then
+                                    element = parseSegment( segment silkscreenLayerLinewidth )
+                                else
+                                    element = parseSegment( segment segment->width )                   
+                                )
+
+                                if( boundp( 'silkscreenBottom ) then
+                                    tconc( silkscreenBottom element )
+                                else
+                                    silkscreenBottom = tconc( nil element )
+                                )
                             )
-
+                        )
+                        (
+                            "shape"
+                            element = createPolygon( elem )
+                            
                             if( boundp( 'silkscreenBottom ) then
                                 tconc( silkscreenBottom element )
                             else
                                 silkscreenBottom = tconc( nil element )
                             )
                         )
-                    )
-                    (
-                        "shape"
-                        element = createPolygon( elem )
-                        
-                        if( boundp( 'silkscreenBottom ) then
-                            tconc( silkscreenBottom element )
-                        else
-                            silkscreenBottom = tconc( nil element )
-                        )
-                    )
-                    (
-                        "text"
-                        arg = t
-                        
-                        if( textsAsSvgPaths then 
-                            element = textToSvgPath( elem arg )
-                        else
-                            element = addText( elem arg )
-                        )
+                        (
+                            "text"
+                            arg = t
+                            
+                            if( textsAsSvgPaths then 
+                                element = textToSvgPath( elem arg )
+                            else
+                                element = addText( elem arg )
+                            )
 
-                        if( boundp( 'silkscreenBottom ) then
-                            tconc( silkscreenBottom element )
-                        else
-                            silkscreenBottom = tconc( nil element )
-                        )    
-                    )
-                    (
-                        t
+                            if( boundp( 'silkscreenBottom ) then
+                                tconc( silkscreenBottom element )
+                            else
+                                silkscreenBottom = tconc( nil element )
+                            )    
+                        )
+                        (
+                            t
+                        )
                     )
                 )
             )
