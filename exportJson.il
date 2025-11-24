@@ -672,13 +672,46 @@ procedure( arcToSvgPath( isFirst xy startEnd isClockwise @optional ( radius nil 
     )
 )
 
-procedure( textToSvgPath( object @optional ( type t ) )
-    let( (  ( svgPath 'unbound )
-            textBlock thickness pathLists segments isFirst endPoint path text )        
+procedure( ttfVerticesToSvgPath( vertices )
+    let( ( ( svgPath 'unbound ) xy radius isFirtst path )
+        foreach( vertice vertices
+            xy = car( vertice )
 
-        ; get text parameters
-        textBlock = axlGetParam( strcat( "paramTextBlock:" object->textBlock ) )        
-        thickness = textBlock->photoWidth
+            xy = list( xCoord( xy ) -yCoord( xy ) )
+            radius = cadr( vertice )
+
+            ; when( radius != 0.0 
+                ; print( radius )
+            ; )
+
+            isFirst = ( lindex( vertices vertice ) == 1 )
+            path = lineToSvgPath( isFirst list( xy ) )
+
+            if( boundp( 'svgPath ) then
+                tconc( svgPath path )
+            else
+                svgPath = tconc( nil path )
+            )
+        )
+        
+        ; close svg path
+        tconc( svgPath "Z" )
+    )
+)
+
+procedure( textToSvgPath( object @optional ( type t ) )
+    let( ( ( ttf nil ) ( svgPath 'unbound )
+            textBlock thickness pathLists segments isFirst endPoint path text polys poly vertices vertice )
+
+        ; add support for true type text
+        if( object->textBlock then
+            ; get text parameters
+            textBlock = axlGetParam( strcat( "paramTextBlock:" object->textBlock ) )
+            thickness = textBlock->photoWidth
+        else
+            ttf = t
+            thickness = 0.12345
+        )
 
         case( type
             (
@@ -695,38 +728,116 @@ procedure( textToSvgPath( object @optional ( type t ) )
             )
         )
 
-        ; get list if paths
-        pathLists = axlText2Lines( object )
+        ; add support for true type text
 
-        foreach( pathList pathLists
-            ; iterate though paths
-            foreach( path pathList          
-                ; get path segments
-                segments = axlPathGetPathSegs( path )
+        if( not( ttf ) then
+            ; get list if paths
+            pathLists = axlText2Lines( object )
 
-                foreach( segment segments
-                    isFirst = ( lindex( segments segment ) == 1 )
+            foreach( pathList pathLists
+                ; iterate though paths
+                foreach( path pathList
+                    ; get path segments
+                    segments = axlPathGetPathSegs( path )
 
-                    endPoint = segment->_endPoint
-                    endPoint = list( xCoord( endPoint ) -yCoord( endPoint ) )
+                    foreach( segment segments
+                        isFirst = ( lindex( segments segment ) == 1 )
+
+                        endPoint = segment->_endPoint
+                        endPoint = list( xCoord( endPoint ) -yCoord( endPoint ) )
+                            
+                        ; vertice is a list: #1 element is the point, #2 is unimportant to us
+                        path = lineToSvgPath( isFirst list( endPoint ) )
                         
-                    ; vertice is a list: #1 element is the point, #2 is unimportant to us
-                    path = lineToSvgPath( isFirst list( endPoint )  )  
-                    
+                        if( boundp( 'svgPath ) then
+                            tconc( svgPath path )
+                        else
+                            svgPath = tconc( nil path )
+                        )
+                    )
+                )
+            )
+        else
+            ; handle true type text
+            ; convert text to a list of polygons
+            polys = axlPolyFromDB( object )
+
+            foreach( poly polys
+                vertices = poly->vertices
+
+                ; make outline
+                foreach( vertice vertices
+                    xy = car( vertice )
+
+                    xy = list( xCoord( xy ) -yCoord( xy ) )
+                    radius = cadr( vertice )
+
+                    ; when( radius != 0.0 
+                        ; print( radius )
+                    ; )
+
+                    isFirst = ( lindex( vertices vertice ) == 1 )
+                    path = lineToSvgPath( isFirst list( xy ) )
+
                     if( boundp( 'svgPath ) then
                         tconc( svgPath path )
                     else
                         svgPath = tconc( nil path )
                     )
-                )               
-            )                   
+                )
+
+                ; close path for each polygon
+                path = "Z"
+                
+                if( boundp( 'svgPath ) then
+                    tconc( svgPath path )
+                else
+                    svgPath = tconc( nil path )
+                )
+
+                ; handle holes
+                holes = poly->holes
+
+                foreach( hole holes
+                    vertices = hole->vertices
+
+                    foreach( vertice vertices
+                        xy = car( vertice )
+
+                        xy = list( xCoord( xy ) -yCoord( xy ) )
+                        radius = cadr( vertice )
+
+                        ; when( radius != 0.0 
+                            ; print( radius )
+                        ; )
+
+                        isFirst = ( lindex( vertices vertice ) == 1 )
+                        path = lineToSvgPath( isFirst list( xy ) )
+
+                        if( boundp( 'svgPath ) then
+                            tconc( svgPath path )
+                        else
+                            svgPath = tconc( nil path )
+                        )
+                    )
+
+                    ; close path for each polygon
+                    path = "Z"
+
+                    if( boundp( 'svgPath ) then
+                        tconc( svgPath path )
+                    else
+                        svgPath = tconc( nil path )
+                    )
+                )
+            )
         )
 
         svgPath = buildString( car( svgPath ) " " )
 
         text = strcat(
             "{"
-            "\t\"svgpath\": \"" svgPath "\",\n"            
+            "\t\"svgpath\": \"" svgPath "\",\n"
             "\t\"thickness\": " sprintf( nil "%f" thickness )
             type
             "}"
