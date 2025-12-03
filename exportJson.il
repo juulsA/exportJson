@@ -710,7 +710,6 @@ procedure( textToSvgPath( object @optional ( type t ) )
             thickness = textBlock->photoWidth
         else
             ttf = t
-            thickness = 0.0
         )
 
         case( type
@@ -839,7 +838,6 @@ procedure( textToSvgPath( object @optional ( type t ) )
             text = strcat(
                     "{"
                     "\t\"svgpath\": \"" svgPath "\",\n"
-                    "\t\"thickness\": " sprintf( nil "%f" thickness ) ",\n"
                     "\t\"fillrule\": \"evenodd\""
                     type
                     "}"
