@@ -168,45 +168,51 @@ procedure( addArc( segment width @optional ( isEtch nil ) ( netName nil ) )
 
         angle1 =  axlRadToDeg( atan2( ( yStart - yCenter ), ( xStart - xCenter ) ) )
 
-        ; convert to positive angle
-        when( negativep( angle1 )
-            angle1 = angle1 + 360
-        )
 
-        angle2 = axlRadToDeg( atan2( ( yEnd - yCenter ), ( xEnd - xCenter ) ) )
-
-        ; convert to positive angle
-        when( negativep( angle2 )
-            angle2 = angle2 + 360
-        )
-
-        ; map the correct angles
-        if( ( angle2 - angle1 ) > 0 then
-            if( cw then
-                startAngle = angle1
-                endAngle = angle2
-            else
-                startAngle = angle2
-                endAngle = angle1
+        if( !segment->isCircle then
+            ; convert to positive angle
+            when( negativep( angle1 )
+                angle1 = angle1 + 360
             )
 
-            ; if arc is a circle, but not marked as a circle ...
-            when( startAngle == endAngle
-                endAngle = endAngle + 360.0
+            angle2 = axlRadToDeg( atan2( ( yEnd - yCenter ), ( xEnd - xCenter ) ) )
+
+            ; convert to positive angle
+            when( negativep( angle2 )
+                angle2 = angle2 + 360
+            )
+
+            ; map the correct angles
+            if( ( angle2 - angle1 ) > 0 then
+                if( cw then
+                    startAngle = angle1
+                    endAngle = angle2
+                else
+                    startAngle = angle2
+                    endAngle = angle1
+                )
+
+                ; if arc is a circle, but not marked as a circle ...
+                when( startAngle == endAngle
+                    endAngle = endAngle + 360.0
+                )
+            else
+                if( cw then
+                    startAngle = angle1
+                    endAngle = angle2
+                else
+                    startAngle = angle2
+                    endAngle = angle1
+                )
+
+                ; if arc is a circle, but not marked as a circle ...
+                when( startAngle == endAngle
+                    startAngle = startAngle + 360.0
+                )
             )
         else
-            if( cw then
-                startAngle = angle1
-                endAngle = angle2
-            else
-                startAngle = angle2
-                endAngle = angle1
-            )
-
-            ; if arc is a circle, but not marked as a circle ...
-            when( startAngle == endAngle
-                startAngle = startAngle + 360.0
-            )
+            startAngle = angle1;
+            endAngle = angle1 + 360.0;
         )
 
         if( isEtch then
@@ -248,10 +254,10 @@ procedure( parseSegment( segment width @optional ( isEtch nil ) ( netName nil ) 
             (
                 "arc"
                 ; Typo?! Sometimes a shape is a circle, but isCircle is nil ... why?!
-                if( segment->isCircle then ; || car( segment->startEnd ) == cadr( segment->startEnd ) then
+                if( segment->isCircle && !isEtch then ; || car( segment->startEnd ) == cadr( segment->startEnd ) then
                     element = addCircle( segment width )
                 else
-                element = addArc( segment width isEtch netName )
+                    element = addArc( segment width isEtch netName )
                 )
             )
             (
